@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::frontend::Symbol;
 use crate::ir::tac::{InstBlock, Label, TACInst};
 
@@ -25,86 +27,86 @@ impl BasicBlocks {
     pub fn from_instrs(instructions: InstBlock, entry_name: &str) -> Self {
         use TACInst::*;
 
-        // A way to get fresh labels
-        let mut counter: i64 = 0;
+        let mut used_labels: HashSet<Label> = instructions
+            .iter()
+            .filter_map(|instruction| match instruction {
+                LabelDecl(label) | UnconditionalJump(label) => Some(label.clone()),
+                ConditionalJump { destination, .. } => Some(destination.clone()),
+                _ => None,
+            })
+            .collect();
+
+        let mut counter = 0u64;
         let mut fresh_label = || -> Label {
-            counter += 1;
-            let label_sym = Symbol::intern(&format!("B{}", counter));
-            Label::Named(label_sym)
+            loop {
+                let label = Label::Named(Symbol::intern(&format!("{entry_name}.B{counter}")));
+                counter += 1;
+                if used_labels.insert(label.clone()) {
+                    return label;
+                }
+            }
         };
 
         let mut basic_blocks: BasicBlocks = BasicBlocks::empty();
-
-        // Add a label before the first instruction if needed
         let mut inst_iter = instructions.into_iter().peekable();
+        let mut terminated = true;
 
-        let first_inst = inst_iter.next();
-        match first_inst {
-            Some(LabelDecl(label)) => {
-                basic_blocks.push_block(label);
-                if let Some(LabelDecl(label2)) = inst_iter.peek() {
-                    basic_blocks.push_instruction_last_block(UnconditionalJump(label2.clone()));
-                }
-            }
-
-            Some(inst) => {
-                let title = Symbol::intern(&format!("{}_entry", entry_name));
-                basic_blocks.push_block(Label::Named(title));
-                basic_blocks.push_instruction_last_block(inst);
-            }
-
-            None => return basic_blocks,
-        }
-
-        // Actual logic that infers the basic blocks. A nightmare.
         while let Some(instruction) = inst_iter.next() {
-            let next_instruction = inst_iter.peek();
-
-            match (&instruction, next_instruction) {
-                (UnconditionalJump(_) | Return(_), Some(LabelDecl(_)) | None) => {
-                    basic_blocks.push_instruction_last_block(instruction);
-                }
-
-                (UnconditionalJump(_) | Return(_), _) => {
-                    basic_blocks.push_instruction_last_block(instruction);
-                    basic_blocks.push_block(fresh_label());
-                }
-
-                (ConditionalJump { .. }, Some(UnconditionalJump(_)) | Some(Return(_))) => {
-                    basic_blocks.push_instruction_last_block(instruction);
-                }
-
-                (ConditionalJump { .. }, Some(LabelDecl(label))) => {
-                    basic_blocks.push_instruction_last_block(instruction);
+            if let LabelDecl(label) = instruction {
+                if !terminated {
                     basic_blocks.push_instruction_last_block(UnconditionalJump(label.clone()));
                 }
 
-                (ConditionalJump { .. }, Some(_)) => {
+                basic_blocks.push_block(label);
+                terminated = false;
+                continue;
+            }
+
+            if terminated {
+                basic_blocks.push_block(fresh_label());
+                terminated = false;
+            }
+
+            match instruction {
+                UnconditionalJump(_) | Return(_) => {
                     basic_blocks.push_instruction_last_block(instruction);
-                    let new_label = fresh_label();
-                    basic_blocks.push_instruction_last_block(UnconditionalJump(new_label.clone()));
-                    basic_blocks.push_block(new_label);
+                    terminated = true;
                 }
 
-                (LabelDecl(label), Some(LabelDecl(label2))) => {
-                    basic_blocks.push_block(label.clone());
-                    basic_blocks.push_instruction_last_block(UnconditionalJump(label2.clone()));
-                }
-
-                (LabelDecl(label), _) => {
-                    basic_blocks.push_block(label.clone());
-                }
-
-                (_, Some(LabelDecl(label))) => {
+                ConditionalJump { .. } => {
                     basic_blocks.push_instruction_last_block(instruction);
-                    basic_blocks.push_instruction_last_block(UnconditionalJump(label.clone()));
+
+                    match inst_iter.peek() {
+                        Some(UnconditionalJump(_)) => {}
+
+                        Some(LabelDecl(label)) => {
+                            basic_blocks
+                                .push_instruction_last_block(UnconditionalJump(label.clone()));
+                            terminated = true;
+                        }
+
+                        Some(_) => {
+                            let false_label = fresh_label();
+                            basic_blocks.push_instruction_last_block(UnconditionalJump(
+                                false_label.clone(),
+                            ));
+                            basic_blocks.push_block(false_label);
+                        }
+
+                        None => panic!("unterminated basic block in procedure {entry_name}"),
+                    }
                 }
 
-                (_, _) => {
+                _ => {
                     basic_blocks.push_instruction_last_block(instruction);
                 }
             }
         }
+
+        assert!(
+            terminated,
+            "unterminated basic block in procedure {entry_name}"
+        );
 
         basic_blocks
     }
