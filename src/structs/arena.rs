@@ -68,7 +68,7 @@ impl ArenaChunk {
     }
 }
 
-// Page size in Linux is often 4KB, while huge pages are 2MB. 
+// Page size in Linux is often 4KB, while huge pages are 2MB.
 const PAGE: usize = 4096;
 const HUGE_PAGE: usize = 2 * 1024 * 1024;
 

@@ -98,7 +98,10 @@ impl TypeChecker {
             Statement::Eval(expr) => self.check_expression(expr),
 
             Statement::Return(expr) => {
-                match self.find_proc_type(&self.current_proc_name.unwrap()).return_type {
+                match self
+                    .find_proc_type(&self.current_proc_name.unwrap())
+                    .return_type
+                {
                     Some(expected) => {
                         if let Some(exp) = expr {
                             self.check_expression(exp);

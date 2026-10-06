@@ -14,7 +14,7 @@ impl BasicBlocks {
     }
 
     /// Given a sequence of instructions, converts them into basic block form.
-    /// A basic block must start with (possibly multiple) labels. 
+    /// A basic block must start with (possibly multiple) labels.
     /// A basic block ends with a control flow divergence (jumps and return).
     ///
     /// To infer a collection of basic blocks from a sequence of instructions:
@@ -120,7 +120,7 @@ impl BasicBlocks {
     }
 }
 
-/// Represents a sequence of instructions that start with a label and end with 
+/// Represents a sequence of instructions that start with a label and end with
 /// an unconditional jump or a return.
 pub struct BasicBlock {
     /// The start label of the block.
@@ -138,7 +138,7 @@ impl BasicBlock {
         }
     }
 
-    /// Pushes an instruction into the block. 
+    /// Pushes an instruction into the block.
     pub fn push_instruction(&mut self, inst: TACInst) {
         self.instructions.push(inst);
     }

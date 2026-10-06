@@ -46,7 +46,7 @@ impl CFG {
     }
 
     /// Given two blocks, A and B, combines them if succ(A) = {B}, and pred(B) = {A}.
-    /// Where succ(A) denotes the successor blocks of A, and pred(B) the predecessors of B. 
+    /// Where succ(A) denotes the successor blocks of A, and pred(B) the predecessors of B.
     pub fn coalesce_blocks(&mut self) {
         let nodes: Vec<NodeIndex> = self.graph.node_indices().collect();
 
@@ -118,9 +118,9 @@ impl CFG {
         }
     }
 
-    /// Given two blocks A and B, if A has a conditional jump edge to B, and B has 
-    /// a conditional jump edge to some block C, unconditionally jump from B to C if 
-    /// the conditional edge from A has some sort of implication on the conditional 
+    /// Given two blocks A and B, if A has a conditional jump edge to B, and B has
+    /// a conditional jump edge to some block C, unconditionally jump from B to C if
+    /// the conditional edge from A has some sort of implication on the conditional
     /// jump to C.
     pub fn jump_threading(&mut self) {
         use TACInst::*;
@@ -414,7 +414,7 @@ mod tests {
     use crate::ir::tac_builder::ProcBuilder;
 
     #[test]
-    fn jump_threading_always_taken_example() {
+    fn jthreading_always_taken() {
         create_session_globals_then(|| {
             let mut proc = ProcBuilder::new("class");
             proc.add_argument("x");
@@ -454,7 +454,7 @@ mod tests {
     }
 
     #[test]
-    fn jump_threading_never_taken_example() {
+    fn jthreading_never_taken() {
         create_session_globals_then(|| {
             let mut proc = ProcBuilder::new("class");
             proc.add_argument("x");
@@ -470,6 +470,48 @@ mod tests {
                 .jump("ret");
 
             proc.label_decl("l0");
+
+            proc.branch_named(TACJumpOpcode::JZ, "zero_1", "l3")
+                .jump("ret");
+
+            proc.label_decl("l3");
+            proc.constant("error_value", -69)
+                .copy("error_value", "returned_value")
+                .jump("ret");
+
+            proc.label_decl("ret");
+            proc.return_void();
+
+            let procedure = proc.build();
+
+            eprintln!("{procedure}");
+
+            let mut cfg = super::CFG::from(procedure);
+            cfg.jump_threading();
+
+            eprintln!("{}", super::ProcDecl::from(cfg));
+        })
+    }
+
+    #[test]
+    fn jthreading_modified_condition() {
+        create_session_globals_then(|| {
+            let mut proc = ProcBuilder::new("class");
+            proc.add_argument("x");
+
+            proc.constant("zero_1", 0)
+                .branch_named(TACJumpOpcode::JNLE, "zero_1", "l0")
+                .jump("l1");
+
+            proc.label_decl("l1");
+
+            proc.constant("error_value", -69)
+                .copy("error_value", "returned_value")
+                .jump("ret");
+
+            proc.label_decl("l0");
+
+            proc.add("zero_1", "error_value", "zero_1");
 
             proc.branch_named(TACJumpOpcode::JZ, "zero_1", "l3")
                 .jump("ret");
