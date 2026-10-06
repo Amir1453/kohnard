@@ -287,6 +287,9 @@ fn jthread_match_opcode(opcode1: TACJumpOpcode, opcode2: TACJumpOpcode) -> Taken
         // x > 0 -> x != 0, x >= 0.
         (JL, JNZ | JLE) | (JNLE, JNZ | JNL) => TakenOrNot::AlwaysTaken,
 
+        // x = 0 -> x <= 0, x >= 0.
+        (JZ, JLE | JNL) => TakenOrNot::AlwaysTaken,
+
         // x < 0 -> not x = 0, not x > 0, not x >= 0.
         // x > 0 -> not x = 0, not x < 0, not x <= 0.
         (JL, JZ | JNL | JNLE) | (JNLE, JZ | JL | JLE) => TakenOrNot::NeverTaken,
@@ -294,6 +297,10 @@ fn jthread_match_opcode(opcode1: TACJumpOpcode, opcode2: TACJumpOpcode) -> Taken
         // x >= 0 -> not x < 0.
         // x <= 0 -> not x > 0.
         (JNL, JL) | (JLE, JNLE) => TakenOrNot::NeverTaken,
+
+        // x = 0 => not x < 0, not x != 0, not x > 0.
+        // x != 0 => not x = 0.
+        (JZ, JL | JNZ | JNLE) | (JNZ, JZ) => TakenOrNot::NeverTaken,
 
         // We cannot make deductions about the rest.
         _ => TakenOrNot::Unknown,
