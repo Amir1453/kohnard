@@ -4,7 +4,7 @@ all: build
 
 build:
 	cargo build --release
-	cp target/release/connard $(EXECUTABLE)
+	cp target/release/kohnard $(EXECUTABLE)
 
 clean:
 	cargo clean
