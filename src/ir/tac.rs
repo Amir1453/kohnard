@@ -5,6 +5,8 @@ use crate::frontend::Symbol;
 use crate::frontend::ast::Operator;
 use crate::types::Type;
 
+use super::basic_block::BlockId;
+
 #[derive(Clone, Hash, PartialEq)]
 pub struct CUTAC(pub Vec<TACDeclaration>);
 
@@ -29,7 +31,7 @@ pub struct ProcDecl {
 
 pub type InstBlock = Vec<TACInst>;
 
-#[derive(Clone, Hash, PartialEq, Default)]
+#[derive(Copy, Clone, Hash, PartialEq, Default)]
 pub enum TACInst {
     Const {
         destination: TACTemp,
@@ -81,14 +83,14 @@ pub enum TACInst {
     Nop,
 }
 
-#[derive(Clone, Hash, PartialEq)]
+#[derive(Copy, Clone, Hash, PartialEq)]
 pub enum TACTemp {
     Temp(i32),
     NamedTemp(Symbol),
     GlobalVar(Symbol),
 }
 
-#[derive(Clone, PartialEq, Hash, Eq)]
+#[derive(Copy, Clone, PartialEq, Hash, Eq)]
 pub enum Label {
     Numeric(i32),
     Named(Symbol),
@@ -226,7 +228,12 @@ impl TACInst {
         use TACInst::*;
 
         match self {
-            Const { destination, .. } | Copi { destination, .. } => destination == temp,
+            Const { destination, .. }
+            | Copi { destination, .. }
+            | ProcCall {
+                result: destination,
+                ..
+            } => destination == temp,
 
             UnaryOperation { result, .. } | BinaryOperation { result, .. } => result == temp,
 
