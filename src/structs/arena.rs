@@ -21,7 +21,6 @@
 
 // The following code was directly taken and/or inspired by the rustc/arena code.
 
-#![allow(dead_code)]
 #![allow(clippy::mut_from_ref)] // Arena allocators are one place where this pattern is fine.
 
 use std::alloc::Layout;
@@ -33,8 +32,6 @@ struct ArenaChunk {
     /// The raw storage for the arena chunk.
     /// Basically a pointer to a [u8].
     storage: NonNull<[MaybeUninit<u8>]>,
-    /// The number of valid entries in the chunk.
-    entries: usize,
 }
 
 impl Drop for ArenaChunk {
@@ -49,10 +46,7 @@ impl ArenaChunk {
         let uninit_slice: Box<[MaybeUninit<u8>]> = Box::new_uninit_slice(capacity);
         let storage = NonNull::new(Box::into_raw(uninit_slice)).unwrap();
 
-        ArenaChunk {
-            storage,
-            entries: 0,
-        }
+        ArenaChunk { storage }
     }
 
     // Returns a pointer to the first allocated object.

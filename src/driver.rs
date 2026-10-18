@@ -8,7 +8,7 @@ use crate::frontend::ast::{Declaration, Program};
 use crate::frontend::{BXParser, Lexer, RetChecker, SemChecker, Symbol, TypeChecker};
 use crate::globals;
 use crate::ir::MM;
-use crate::opt::Optimizer;
+// use crate::opt::Optimizer;
 use crate::options::CompilerOptions;
 use crate::types::{ProcType, SemanticType};
 
@@ -109,7 +109,7 @@ impl Driver {
             RetChecker::check(&cu_program)?;
 
             let cutac = MM::munch(cu_program);
-            let cutac = Optimizer::optimize(cutac);
+            // let cutac = Optimizer::optimize(cutac);
             let asm = Asm::lower(cutac);
 
             let out_path = options.out_path.clone().unwrap_or_else(|| {

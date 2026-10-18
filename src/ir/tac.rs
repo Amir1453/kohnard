@@ -1,11 +1,10 @@
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
+use thin_vec::ThinVec;
+
 use crate::frontend::Symbol;
 use crate::frontend::ast::Operator;
-use crate::types::Type;
-
-use super::basic_block::BlockId;
 
 #[derive(Clone, Hash, PartialEq)]
 pub struct CUTAC(pub Vec<TACDeclaration>);
@@ -29,7 +28,7 @@ pub struct ProcDecl {
     pub instructions: InstBlock,
 }
 
-pub type InstBlock = Vec<TACInst>;
+pub type InstBlock = ThinVec<TACInst>;
 
 #[derive(Copy, Clone, Hash, PartialEq, Default)]
 pub enum TACInst {
@@ -83,33 +82,21 @@ pub enum TACInst {
     Nop,
 }
 
+/// TODO Remove this Temp enum type, since it is not necessary,
+/// and i32 can be represented as a Symbol as well. Having this
+/// as an enum bloats the size to 8 bytes.
+///
+/// One can make a HashMap of Symbol -> TempType, but not sure
+/// how the performance compares.
 #[derive(Copy, Clone, Hash, PartialEq)]
 pub enum TACTemp {
-    Temp(i32),
+    Temp(u32),
     NamedTemp(Symbol),
     GlobalVar(Symbol),
 }
 
 #[derive(Copy, Clone, PartialEq, Hash, Eq)]
-pub enum Label {
-    Numeric(i32),
-    Named(Symbol),
-}
-
-#[derive(Copy, Clone, Hash, PartialEq)]
-#[allow(dead_code)]
-pub enum TACType {
-    VOID,
-    LABEL,
-    TOKEN,
-    METADATA,
-
-    I1,
-    I8,
-    I16,
-    I32,
-    I64,
-}
+pub struct Label(pub u32);
 
 #[derive(Copy, Clone, Hash, PartialEq)]
 pub enum TACJumpOpcode {
@@ -240,6 +227,18 @@ impl TACInst {
             _ => false,
         }
     }
+
+    /// Should this return Option<Terminator> instead ?
+    /// But it cannot, since it Terminator is via BlockIdx.
+    /// How about Option<TACInst> then ?
+    pub fn is_terminator(&self) -> bool {
+        use TACInst::*;
+
+        match self {
+            UnconditionalJump(_) | ConditionalJump { .. } | Return(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Debug for TACInst {
@@ -317,28 +316,7 @@ impl fmt::Display for TACTemp {
 
 impl fmt::Display for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Label::Numeric(num) => write!(f, "%.L{}", num),
-            Label::Named(name) => write!(f, "%.L{}", name),
-        }
-    }
-}
-
-impl From<Option<Type>> for TACType {
-    fn from(value: Option<Type>) -> Self {
-        use TACType::*;
-        use Type::*;
-
-        let Some(ty) = value else {
-            return VOID;
-        };
-
-        match ty {
-            Int => I64,
-            Bool => I1,
-            Void => VOID,
-            _ => unreachable!(),
-        }
+        write!(f, ".L{}", self.0)
     }
 }
 
@@ -387,22 +365,6 @@ impl From<Operator> for TACBinaryOpcode {
             RShift => SHR,
             _ => unreachable!(),
         }
-    }
-}
-
-impl fmt::Display for TACType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::VOID => "void",
-            Self::LABEL => "label",
-            Self::I1 => "i1",
-            Self::I8 => "i8",
-            Self::I16 => "i16",
-            Self::I32 => "i32",
-            Self::I64 => "i64",
-            _ => todo!(),
-        };
-        write!(f, "{}", s)
     }
 }
 

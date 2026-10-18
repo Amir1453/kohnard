@@ -1,5 +1,3 @@
-#![allow(dead_code, unused)]
-
 use std::collections::HashMap;
 
 use inkwell::builder::BuilderError;

@@ -12,19 +12,19 @@ pub struct MM {
     vars: Stack<HashMap<Symbol, TACTemp>>,
     loop_stack: Stack<(Label, Label)>,
 
-    temp_counter: i32,
-    label_counter: i32,
+    temp_counter: u32,
+    label_counter: u32,
 }
 
 impl MM {
     fn new() -> Self {
         Self {
             cutac: CUTAC::new(),
-            proc_instructions: Vec::new(),
+            proc_instructions: InstBlock::new(),
             vars: Stack::new_with(HashMap::new()),
             loop_stack: Stack::default(),
-            temp_counter: -1,
-            label_counter: -1,
+            temp_counter: 0,
+            label_counter: 0,
         }
     }
 
@@ -60,8 +60,7 @@ impl MM {
                     self.munch_block(*block);
                     let mut instructions = std::mem::take(&mut self.proc_instructions);
 
-                    let ret_label_sym = Symbol::intern(&format!("ret_{proc_name}"));
-                    let ret_label = Label::Named(ret_label_sym);
+                    let ret_label = self.fresh_label();
 
                     if return_type.is_some() {
                         let ret_temp = self.fresh_temp();
@@ -482,13 +481,15 @@ impl MM {
     }
 
     fn fresh_temp(&mut self) -> TACTemp {
+        let tmp = TACTemp::Temp(self.temp_counter);
         self.temp_counter += 1;
-        TACTemp::Temp(self.temp_counter)
+        tmp
     }
 
     fn fresh_label(&mut self) -> Label {
+        let lbl = Label(self.label_counter);
         self.label_counter += 1;
-        Label::Numeric(self.label_counter)
+        lbl
     }
 
     fn emit(&mut self, inst: TACInst) {

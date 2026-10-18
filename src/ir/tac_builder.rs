@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::collections::HashMap;
 
 use crate::frontend::Symbol;
@@ -14,8 +12,8 @@ pub struct ProcBuilder {
 
     variables: HashMap<Symbol, TACTemp>,
     labels: HashMap<Symbol, Label>,
-    next_temp: i32,
-    next_label: i32,
+    next_temp: u32,
+    next_label: u32,
 }
 
 impl ProcBuilder {
@@ -184,7 +182,7 @@ impl ProcBuilder {
     }
 
     fn fresh_label(&mut self) -> Label {
-        let label = Label::Numeric(self.next_label);
+        let label = Label(self.next_label);
         self.next_label += 1;
         label
     }

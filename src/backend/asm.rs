@@ -11,7 +11,7 @@ use crate::types::Name;
 pub struct Asm {
     var_asm: Vec<CompactString>,
     asm: Vec<CompactString>,
-    temps: HashMap<i32, usize>,
+    temps: HashMap<u32, usize>,
     named: HashMap<CompactString, usize>,
     tparams: HashMap<CompactString, usize>,
     params: Vec<TACTemp>,
@@ -368,10 +368,7 @@ impl Asm {
     }
 
     fn format_label(&self, lbl: &Label) -> CompactString {
-        match lbl {
-            Label::Numeric(n) => CompactString::from(format!(".L{}", n)),
-            Label::Named(s) => CompactString::from(format!(".L{}", s)),
-        }
+        CompactString::from(lbl.to_string())
     }
 
     fn emit<S: AsRef<str>>(&mut self, a: S) {

@@ -330,7 +330,7 @@ impl From<ProcDecl> for CFG {
             instructions,
         } = value;
 
-        let basic_blocks = BasicBlocks::from_instrs(instructions, name.as_str());
+        let basic_blocks = BasicBlocks::from_instrs(instructions);
 
         // Populate the nodes of the graph
         for block in basic_blocks.blocks.into_iter() {

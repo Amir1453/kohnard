@@ -14,7 +14,7 @@ impl Symbol {
     /// Avoid this except for things like deserialization of previously
     /// serialized symbols, and testing. Use `intern` instead.
     pub const fn new(n: u32) -> Self {
-        Symbol(SymbolIndex::from_u32(n))
+        Symbol(SymbolIndex(n))
     }
 
     /// Maps a string to its interned representation.
@@ -56,37 +56,18 @@ impl std::fmt::Display for Symbol {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SymbolIndex(u32);
 
-#[allow(dead_code)]
-impl SymbolIndex {
+impl From<usize> for SymbolIndex {
     #[inline]
-    const fn new(value: usize) -> Self {
-        assert!(value <= u32::MAX as usize);
-        SymbolIndex(value as u32)
+    fn from(value: usize) -> Self {
+        debug_assert!(value <= u32::MAX as usize);
+        Self(value as u32)
     }
+}
 
+impl From<SymbolIndex> for usize {
     #[inline]
-    const fn index(self) -> usize {
-        self.0 as usize
-    }
-
-    #[inline]
-    const fn from_usize(value: usize) -> Self {
-        Self::new(value)
-    }
-
-    #[inline]
-    const fn from_u32(value: u32) -> Self {
-        Self(value)
-    }
-
-    #[inline]
-    const fn as_u32(self) -> u32 {
-        self.0
-    }
-
-    #[inline]
-    const fn as_usize(self) -> usize {
-        self.0 as usize
+    fn from(value: SymbolIndex) -> Self {
+        value.0 as usize
     }
 }
 
@@ -116,7 +97,7 @@ impl Interner {
     }
 
     fn get_str(&self, symbol: Symbol) -> &str {
-        let byte_str = self.get_inner(symbol.0.as_usize());
+        let byte_str = self.get_inner(symbol.0.into());
         // SAFETY: known to be a UTF8 string because it's a `Symbol`.
         unsafe { str::from_utf8_unchecked(byte_str) }
     }

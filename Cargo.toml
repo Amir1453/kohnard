@@ -18,6 +18,7 @@ hashbrown = "0.17.1"
 parking_lot = "0.12.5"
 scoped-tls = "1.0.1"
 thin-vec = "0.2.20"
+typed-index-collections = "4.0.0-alpha.2"
 
 [lints.clippy]
 vec_box = "allow"
