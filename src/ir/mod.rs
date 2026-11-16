@@ -5,5 +5,5 @@ pub mod tac;
 #[cfg(test)]
 pub mod tac_builder;
 
-pub use basic_block::{BasicBlock, BasicBlocks};
+pub use basic_block::BasicBlocks;
 pub use mm::MM;

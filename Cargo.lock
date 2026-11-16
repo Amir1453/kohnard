@@ -258,6 +258,7 @@ dependencies = [
  "parking_lot",
  "petgraph 0.8.3",
  "scoped-tls",
+ "smallvec",
  "thin-vec",
  "thiserror",
  "typed-index-collections",

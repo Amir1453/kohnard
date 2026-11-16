@@ -8,6 +8,8 @@ use std::collections::HashMap;
 use crate::ir::tac::*;
 use crate::types::Name;
 
+use super::CodegenBackend;
+
 pub struct Asm {
     var_asm: Vec<CompactString>,
     asm: Vec<CompactString>,
@@ -15,6 +17,23 @@ pub struct Asm {
     named: HashMap<CompactString, usize>,
     tparams: HashMap<CompactString, usize>,
     params: Vec<TACTemp>,
+    next_label: u64,
+    label_offset: u64,
+}
+
+impl CodegenBackend for Asm {
+    fn lower(cutac: CUTAC) -> anyhow::Result<String> {
+        let mut asm = Asm::new();
+        asm.lower_cutac(cutac);
+
+        let mut out: Vec<CompactString> = Vec::new();
+        out.extend(asm.var_asm);
+        out.extend(asm.asm);
+
+        let mut asmuk = out.join("\n");
+        asmuk.push('\n');
+        Ok(asmuk)
+    }
 }
 
 impl Asm {
@@ -26,18 +45,9 @@ impl Asm {
             named: HashMap::new(),
             tparams: HashMap::new(),
             params: Vec::new(),
+            next_label: 0,
+            label_offset: 0,
         }
-    }
-
-    pub fn lower(cutac: CUTAC) -> String {
-        let mut asm = Asm::new();
-        asm.lower_cutac(cutac);
-        let mut out: Vec<CompactString> = Vec::new();
-        out.extend(asm.var_asm);
-        out.extend(asm.asm);
-        let mut asmuk = out.join("\n");
-        asmuk.push('\n');
-        asmuk
     }
 
     fn lower_cutac(&mut self, cutac: CUTAC) {
@@ -62,6 +72,7 @@ impl Asm {
         self.named.clear();
         self.tparams.clear();
         self.params.clear();
+        self.label_offset = self.next_label;
 
         // Use a fresh buffer for this proc's body so nothing else gets captured.
         let mut body_buf: Vec<CompactString> = Vec::new();
@@ -144,11 +155,13 @@ impl Asm {
             }
 
             TACInst::LabelDecl(lbl) => {
-                self.emit(format!("{}:", self.format_label(&lbl)));
+                let label = self.format_label(&lbl);
+                self.emit(format!("{}:", label));
             }
 
             TACInst::UnconditionalJump(lbl) => {
-                self.emit(format!("\tjmp\t{}", self.format_label(&lbl)));
+                let label = self.format_label(&lbl);
+                self.emit(format!("\tjmp\t{}", label));
             }
 
             TACInst::ConditionalJump {
@@ -166,7 +179,8 @@ impl Asm {
                     TACJumpOpcode::JLE => "jle",
                     TACJumpOpcode::JNLE => "jg",
                 };
-                self.emit(format!("\t{}\t{}", j, self.format_label(&destination)));
+                let label = self.format_label(&destination);
+                self.emit(format!("\t{}\t{}", j, label));
             }
 
             TACInst::UnaryOperation {
@@ -367,8 +381,10 @@ impl Asm {
         format!("-{}(%rbp)", 8 * (slot + 1))
     }
 
-    fn format_label(&self, lbl: &Label) -> CompactString {
-        CompactString::from(lbl.to_string())
+    fn format_label(&mut self, lbl: &Label) -> CompactString {
+        let label = u64::from(lbl.0) + self.label_offset;
+        self.next_label = self.next_label.max(label + 1);
+        CompactString::from(format!(".L{label}"))
     }
 
     fn emit<S: AsRef<str>>(&mut self, a: S) {
@@ -379,3 +395,75 @@ impl Asm {
         self.var_asm.push(CompactString::from(a.as_ref()));
     }
 }
+
+//
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::frontend::Symbol;
+//     use crate::globals::create_session_globals_then;
+//
+//     #[test]
+//     fn labels_and_branch_targets_are_unique_across_procedures() {
+//         create_session_globals_then(|| {
+//             let mut unit = CUTAC::new();
+//             for name in ["first", "second", "third"] {
+//                 unit.push(TACDeclaration::ProcDecl(ProcDecl::new(
+//                     Symbol::intern(name),
+//                     None,
+//                     vec![
+//                         TACInst::Const {
+//                             destination: TACTemp::Temp(0),
+//                             constant: 1,
+//                         },
+//                         TACInst::ConditionalJump {
+//                             opcode: TACJumpOpcode::JNZ,
+//                             condition: TACTemp::Temp(0),
+//                             destination: Label(7),
+//                         },
+//                         TACInst::UnconditionalJump(Label(0)),
+//                         TACInst::LabelDecl(Label(0)),
+//                         TACInst::Return(None),
+//                         TACInst::LabelDecl(Label(7)),
+//                         TACInst::Return(None),
+//                     ]
+//                     .into(),
+//                 )));
+//             }
+//
+//             let assembly = Asm::lower(unit).unwrap();
+//             let labels: Vec<_> = assembly
+//                 .lines()
+//                 .filter(|line| line.starts_with(".L"))
+//                 .collect();
+//             assert_eq!(labels, [".L0:", ".L7:", ".L8:", ".L15:", ".L16:", ".L23:"]);
+//             for (fallthrough, taken) in [(0, 7), (8, 15), (16, 23)] {
+//                 assert!(assembly.contains(&format!("\tjnz\t.L{taken}\n")));
+//                 assert!(assembly.contains(&format!("\tjmp\t.L{fallthrough}\n")));
+//             }
+//         });
+//     }
+//
+//     #[test]
+//     fn maximum_local_label_does_not_overflow_between_procedures() {
+//         create_session_globals_then(|| {
+//             let mut unit = CUTAC::new();
+//             for name in ["first", "second"] {
+//                 unit.push(TACDeclaration::ProcDecl(ProcDecl::new(
+//                     Symbol::intern(name),
+//                     None,
+//                     vec![
+//                         TACInst::UnconditionalJump(Label(u32::MAX)),
+//                         TACInst::LabelDecl(Label(u32::MAX)),
+//                         TACInst::Return(None),
+//                     ]
+//                     .into(),
+//                 )));
+//             }
+//
+//             let assembly = Asm::lower(unit).unwrap();
+//             assert!(assembly.contains("\tjmp\t.L4294967295\n.L4294967295:\n"));
+//             assert!(assembly.contains("\tjmp\t.L8589934591\n.L8589934591:\n"));
+//         });
+//     }
+// }

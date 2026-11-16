@@ -1,3 +1,5 @@
-mod asm;
+pub mod x86;
 
-pub use asm::Asm;
+pub trait CodegenBackend {
+    fn lower(cutac: crate::ir::tac::CUTAC) -> anyhow::Result<String>;
+}

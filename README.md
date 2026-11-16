@@ -21,3 +21,5 @@ To test:
 - parking_lot: Fast Mutex
 - scoped_tls: To have scoped TLS 
 - thin_vec: Word length Vector
+- typed-index-collections: Provides IndexVec<I: Idx, T>
+- smallvec: Inline storage Vector

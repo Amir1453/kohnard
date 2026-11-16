@@ -3,12 +3,13 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 
-use crate::backend::Asm;
+use crate::backend::CodegenBackend;
+use crate::backend::x86;
 use crate::frontend::ast::{Declaration, Program};
 use crate::frontend::{BXParser, Lexer, RetChecker, SemChecker, Symbol, TypeChecker};
 use crate::globals;
 use crate::ir::MM;
-// use crate::opt::Optimizer;
+use crate::opt::Optimizer;
 use crate::options::CompilerOptions;
 use crate::types::{ProcType, SemanticType};
 
@@ -109,8 +110,8 @@ impl Driver {
             RetChecker::check(&cu_program)?;
 
             let cutac = MM::munch(cu_program);
-            // let cutac = Optimizer::optimize(cutac);
-            let asm = Asm::lower(cutac);
+            let cutac = Optimizer::optimize(cutac);
+            let asm = x86::Asm::lower(cutac)?;
 
             let out_path = options.out_path.clone().unwrap_or_else(|| {
                 let mut path = PathBuf::from(

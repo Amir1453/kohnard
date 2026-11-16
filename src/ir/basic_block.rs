@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
 use hashbrown::HashMap;
+use petgraph::visit::Bfs;
+use smallvec::SmallVec;
 use typed_index_collections::TiVec as IndexVec;
 
 use crate::ir::tac::{InstBlock, Label, TACInst, TACJumpOpcode, TACTemp};
@@ -9,6 +11,7 @@ use crate::ir::tac::{InstBlock, Label, TACInst, TACJumpOpcode, TACTemp};
 pub struct BasicBlocks {
     /// The collection of basic blocks.
     pub blocks: IndexVec<BlockIdx, BasicBlock>,
+    pub cache: BlockCache,
 }
 
 impl BasicBlocks {
@@ -16,6 +19,7 @@ impl BasicBlocks {
     const fn empty() -> Self {
         Self {
             blocks: IndexVec::new(),
+            cache: BlockCache::new(),
         }
     }
 
@@ -23,11 +27,14 @@ impl BasicBlocks {
     /// A basic block starts with a leader. The firs instructions is a leader.
     /// A basic block ends with a control flow divergence (jumps and return).
     ///
-    /// To infer a collection of basic blocks from a sequence of instructions:
-    /// 1. Start a BasicBlock.
-    /// 2. Insert a label if there is not one.
-    /// 3. Accumulate instructions until a jump or return.
-    /// 4. If there is a fall-through instruction, add an unconditional jump.
+    ///
+    /// We use the leader-first algorithm to create the BasicBlocks.
+    /// 1. Collect the leaders. An instruction is a leader, if it is the first
+    /// instruction, target of a control flow divergence, or it is placed after
+    /// a terminator.
+    /// 2. For each leader, create a Basic Block.
+    /// 3. If there are multiple labels, map them to the same Block.
+    /// 4. Push the instructions on the blocks, making sure that no fall-through exists.
     pub fn from_instrs(instructions: InstBlock) -> Self {
         use TACInst::*;
 
@@ -82,6 +89,7 @@ impl BasicBlocks {
 
         // For every pair (start, end) in leaders, go over the instructions and add them to
         // BasicBlocks, specified by the map leader_to_block.
+        // Next block (fall-through block) is simply leader_to_block[&end].
         for (start, end) in leaders
             .windows(2)
             .map(|w| (w[0], w[1]))
@@ -115,7 +123,7 @@ impl BasicBlocks {
                     }
                 }
 
-                if matches!(bb.terminator, Nop) {
+                if !bb.is_terminator_init() {
                     bb.set_terminator(Jump(leader_to_block[&end]));
                 }
             }
@@ -124,11 +132,128 @@ impl BasicBlocks {
         basic_blocks
     }
 
+    /// Flattens the BasicBlocks into an instruction stream.
+    pub fn serialize(mut self) -> InstBlock {
+        if self.blocks.len() == 0 {
+            return InstBlock::new();
+        }
+
+        let mut schedule: InstBlock = InstBlock::with_capacity(10);
+        let mut schedule_order: Vec<BlockIdx> = Vec::with_capacity(self.blocks.len());
+
+        let entry = BlockIdx::from(0);
+        let mut bfs = Bfs::new(&self, entry);
+
+        while let Some(bx) = bfs.next(&self) {
+            schedule_order.push(bx);
+        }
+
+        for bidx in schedule_order {
+            let BasicBlock {
+                instructions,
+                terminator,
+            } = std::mem::replace(&mut self.blocks[bidx], BasicBlock::new());
+
+            schedule.push(TACInst::LabelDecl(Label(bidx.0)));
+
+            for inst in instructions {
+                schedule.push(inst);
+            }
+
+            // The BlockIdx are mapped directly to Label, no shifting or mutation.
+            // It is up to the backend to make sure that per function labels are
+            // unique in the compilation unit.
+            use TACInst::*;
+            match terminator {
+                BlockTerminator::Return(tactemp) => schedule.push(Return(tactemp)),
+
+                BlockTerminator::Jump(block_idx) => {
+                    schedule.push(UnconditionalJump(block_idx.into()))
+                }
+
+                BlockTerminator::Branch {
+                    opcode,
+                    condition,
+                    taken,
+                    not_taken,
+                } => {
+                    schedule.push(ConditionalJump {
+                        opcode,
+                        condition,
+                        destination: taken.into(),
+                    });
+
+                    schedule.push(UnconditionalJump(not_taken.into()));
+                }
+
+                BlockTerminator::Nop | BlockTerminator::Uninit => unreachable!(),
+            }
+        }
+
+        schedule
+    }
+
+    pub fn invalidate_cache(&mut self) {
+        self.cache.predecessors.take();
+    }
+
+    /// Compute or return the predecessors from the cache.
+    pub fn predecessors(&self) -> &Predecessors {
+        self.cache.predecessors.get_or_init(|| {
+            // Construct an empty predecessors list
+            let mut preds: Predecessors = IndexVec::from(vec![SmallVec::new(); self.blocks.len()]);
+
+            // We go through every block
+            for (idx, block) in self.blocks.iter_enumerated() {
+                let successors = block.successors();
+                for succ in successors {
+                    preds[succ].push(idx);
+                }
+            }
+
+            preds
+        })
+    }
+
+    /// Returns the predecessors of a Basic Block.
+    pub fn predecessors_of(&self, bidx: BlockIdx) -> &[BlockIdx] {
+        self.predecessors()[bidx].as_slice()
+    }
+
     /// Pushes a new block and returns its BlockIdx.
     fn push_block(&mut self) -> BlockIdx {
         let idx = BlockIdx(self.blocks.len() as u32);
         self.blocks.push(BasicBlock::new());
         idx
+    }
+}
+
+impl petgraph::visit::GraphBase for BasicBlocks {
+    #[doc = r" edge identifier"]
+    type EdgeId = (BlockIdx, BlockIdx);
+
+    #[doc = r" node identifier"]
+    type NodeId = BlockIdx;
+}
+
+impl<'bb> petgraph::visit::IntoNeighbors for &'bb BasicBlocks {
+    type Neighbors = Successors;
+
+    #[doc = r" Return an iterator of the neighbors of node `a`."]
+    fn neighbors(self, a: Self::NodeId) -> Self::Neighbors {
+        self.blocks[a].successors()
+    }
+}
+
+impl petgraph::visit::Visitable for BasicBlocks {
+    type Map = std::collections::HashSet<BlockIdx>;
+
+    fn visit_map(&self) -> Self::Map {
+        Self::Map::new()
+    }
+
+    fn reset_map(&self, map: &mut Self::Map) {
+        map.clear();
     }
 }
 
@@ -148,6 +273,12 @@ impl From<BlockIdx> for usize {
     }
 }
 
+impl From<BlockIdx> for Label {
+    fn from(value: BlockIdx) -> Self {
+        Self(value.0)
+    }
+}
+
 /// Represents a sequence of instructions that start with a label and end with
 /// an unconditional jump or a return.
 pub struct BasicBlock {
@@ -162,7 +293,7 @@ impl BasicBlock {
     pub const fn new() -> Self {
         Self {
             instructions: InstBlock::new(),
-            terminator: BlockTerminator::Nop,
+            terminator: BlockTerminator::Uninit,
         }
     }
 
@@ -176,8 +307,16 @@ impl BasicBlock {
         self.instructions.pop()
     }
 
+    pub fn is_terminator_init(&self) -> bool {
+        return !matches!(self.terminator, BlockTerminator::Uninit);
+    }
+
     pub fn set_terminator(&mut self, term: BlockTerminator) {
         self.terminator = term;
+    }
+
+    pub fn successors(&self) -> Successors {
+        self.terminator.successors()
     }
 }
 
@@ -195,8 +334,42 @@ pub enum BlockTerminator {
         not_taken: BlockIdx,
     },
 
-    #[default]
     Nop,
+
+    #[default]
+    Uninit,
+}
+
+type Successors = std::iter::Flatten<std::array::IntoIter<Option<BlockIdx>, 2>>;
+
+impl BlockTerminator {
+    pub fn successors(&self) -> Successors {
+        let successors = match self {
+            Self::Return(_) => [None, None],
+            Self::Jump(bb) => [Some(*bb), None],
+            Self::Branch {
+                taken, not_taken, ..
+            } => [Some(*taken), Some(*not_taken)],
+            Self::Nop => [None, None],
+            Self::Uninit => unreachable!(),
+        };
+
+        successors.into_iter().flatten()
+    }
+}
+
+type Predecessors = IndexVec<BlockIdx, SmallVec<[BlockIdx; 4]>>;
+
+pub struct BlockCache {
+    predecessors: std::cell::OnceCell<Predecessors>,
+}
+
+impl BlockCache {
+    pub const fn new() -> Self {
+        Self {
+            predecessors: std::cell::OnceCell::new(),
+        }
+    }
 }
 
 impl std::fmt::Display for BasicBlocks {
@@ -254,6 +427,8 @@ impl std::fmt::Display for BlockTerminator {
             ),
 
             Nop => write!(f, ""),
+
+            Uninit => write!(f, ""),
         }
     }
 }

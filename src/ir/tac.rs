@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Add, Deref, DerefMut};
 
 use thin_vec::ThinVec;
 
@@ -97,6 +97,12 @@ pub enum TACTemp {
 
 #[derive(Copy, Clone, PartialEq, Hash, Eq)]
 pub struct Label(pub u32);
+
+impl Label {
+    pub fn add(self, v: u32) -> Self {
+        Self(self.0.add(v))
+    }
+}
 
 #[derive(Copy, Clone, Hash, PartialEq)]
 pub enum TACJumpOpcode {
