@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use thin_vec::ThinVec;
+
 use crate::frontend::Symbol;
 use crate::ir::tac::{
     InstBlock, Label, ProcDecl, TACBinaryOpcode, TACInst, TACJumpOpcode, TACTemp,
@@ -7,7 +9,7 @@ use crate::ir::tac::{
 
 pub struct ProcBuilder {
     pub name: Symbol,
-    pub arguments: Option<Vec<Symbol>>,
+    pub arguments: Option<ThinVec<Symbol>>,
     pub instructions: InstBlock,
 
     variables: HashMap<Symbol, TACTemp>,
@@ -42,7 +44,7 @@ impl ProcBuilder {
     pub fn add_argument(&mut self, arg: &str) {
         self.define(arg);
         self.arguments
-            .get_or_insert_with(Vec::new)
+            .get_or_insert_with(ThinVec::new)
             .push(Symbol::intern(arg));
     }
 

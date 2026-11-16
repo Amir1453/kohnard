@@ -24,7 +24,7 @@ pub struct GlobalVarDecl {
 #[derive(Clone, Hash, PartialEq)]
 pub struct ProcDecl {
     pub name: Symbol,
-    pub arguments: Option<Vec<Symbol>>,
+    pub arguments: Option<ThinVec<Symbol>>,
     pub instructions: InstBlock,
 }
 
@@ -185,7 +185,7 @@ impl fmt::Display for GlobalVarDecl {
 }
 
 impl ProcDecl {
-    pub fn new(name: Symbol, arguments: Option<Vec<Symbol>>, instructions: InstBlock) -> Self {
+    pub fn new(name: Symbol, arguments: Option<ThinVec<Symbol>>, instructions: InstBlock) -> Self {
         Self {
             name,
             arguments,

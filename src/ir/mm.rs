@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use thin_vec::ThinVec;
+
 use crate::frontend::{Symbol, ast::*};
 use crate::ir::tac::*;
 use crate::structs::Stack;
@@ -50,7 +52,7 @@ impl MM {
                 } => {
                     self.vars.push(HashMap::new());
 
-                    let arguments: Option<Vec<Symbol>> =
+                    let arguments: Option<ThinVec<Symbol>> =
                         proc_args.map(|args| args.into_iter().map(|(name, _ty)| name).collect());
 
                     arguments.iter().flat_map(|v| v.iter()).for_each(|name| {
