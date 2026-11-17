@@ -7,6 +7,7 @@ mod globals;
 mod structs;
 
 pub mod driver;
+mod index;
 mod options;
 mod types;
 

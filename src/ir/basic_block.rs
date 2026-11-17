@@ -141,7 +141,7 @@ impl BasicBlocks {
         let mut schedule: InstBlock = InstBlock::with_capacity(10);
         let mut schedule_order: Vec<BlockIdx> = Vec::with_capacity(self.blocks.len());
 
-        let entry = BlockIdx::from(0);
+        let entry = BlockIdx::new(0);
         let mut bfs = Bfs::new(&self, entry);
 
         while let Some(bx) = bfs.next(&self) {
@@ -154,7 +154,7 @@ impl BasicBlocks {
                 terminator,
             } = std::mem::replace(&mut self.blocks[bidx], BasicBlock::new());
 
-            schedule.push(TACInst::LabelDecl(Label(bidx.0)));
+            schedule.push(TACInst::LabelDecl(Label(bidx.into())));
 
             for inst in instructions {
                 schedule.push(inst);
@@ -222,7 +222,7 @@ impl BasicBlocks {
 
     /// Pushes a new block and returns its BlockIdx.
     fn push_block(&mut self) -> BlockIdx {
-        let idx = BlockIdx(self.blocks.len() as u32);
+        let idx = BlockIdx::new(self.blocks.len() as u32);
         self.blocks.push(BasicBlock::new());
         idx
     }
@@ -257,25 +257,11 @@ impl petgraph::visit::Visitable for BasicBlocks {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BlockIdx(u32);
-
-impl From<usize> for BlockIdx {
-    fn from(value: usize) -> Self {
-        debug_assert!(value <= u32::MAX as usize);
-        Self(value as u32)
-    }
-}
-
-impl From<BlockIdx> for usize {
-    fn from(value: BlockIdx) -> Self {
-        value.0 as usize
-    }
-}
+crate::index::index_type!(BlockIdx);
 
 impl From<BlockIdx> for Label {
     fn from(value: BlockIdx) -> Self {
-        Self(value.0)
+        Self(value.into())
     }
 }
 

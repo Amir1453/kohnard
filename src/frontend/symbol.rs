@@ -7,6 +7,8 @@ use hashbrown::hash_table::Entry;
 
 use crate::structs::DroplessArena;
 
+crate::index::index_type!(SymbolIndex);
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Symbol(SymbolIndex);
 
@@ -14,7 +16,7 @@ impl Symbol {
     /// Avoid this except for things like deserialization of previously
     /// serialized symbols, and testing. Use `intern` instead.
     pub const fn new(n: u32) -> Self {
-        Symbol(SymbolIndex(n))
+        Symbol(SymbolIndex::new(n))
     }
 
     /// Maps a string to its interned representation.
@@ -50,24 +52,6 @@ impl std::fmt::Debug for Symbol {
 impl std::fmt::Display for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self.as_str(), f)
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SymbolIndex(u32);
-
-impl From<usize> for SymbolIndex {
-    #[inline]
-    fn from(value: usize) -> Self {
-        debug_assert!(value <= u32::MAX as usize);
-        Self(value as u32)
-    }
-}
-
-impl From<SymbolIndex> for usize {
-    #[inline]
-    fn from(value: SymbolIndex) -> Self {
-        value.0 as usize
     }
 }
 

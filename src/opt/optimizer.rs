@@ -40,7 +40,7 @@ impl Optimizer {
 /// Marks unreachable nodes in the Control Flow Graph by doing a depth first search,
 /// marking all the unvisited nodes, and setting their terminators to Nop.
 fn mark_unreachable(bb: &mut BasicBlocks) {
-    let entry = BlockIdx::from(0);
+    let entry = BlockIdx::new(0);
     let mut dfs = Dfs::new(&*bb, entry);
 
     while dfs.next(&*bb).is_some() {}

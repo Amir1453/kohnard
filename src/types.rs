@@ -47,18 +47,31 @@ pub enum TyKind {
     MutRef(Ty),
 }
 
+crate::index::index_type!(TypeIndex);
+
 /// Represents an entry in the Type Interner.
 /// Similar to how Symbol represents an underlying String.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
 pub struct Ty(TypeIndex);
+
+const _: () = {
+    assert!(size_of::<Option<Ty>>() == size_of::<Ty>());
+};
 
 #[allow(dead_code)]
 impl Ty {
-    pub const INT: Ty = Ty(TypeIndex(0));
-    pub const BOOL: Ty = Ty(TypeIndex(1));
-    pub const VOID: Ty = Ty(TypeIndex(2));
-    pub const PROMISED: Ty = Ty(TypeIndex(3));
-    pub const ERROR: Ty = Ty(TypeIndex(4));
+    pub const INT: Ty = Ty::new(0);
+    pub const BOOL: Ty = Ty::new(1);
+    pub const VOID: Ty = Ty::new(2);
+    pub const PROMISED: Ty = Ty::new(3);
+    pub const ERROR: Ty = Ty::new(4);
+
+    #[must_use]
+    #[inline(always)]
+    pub const fn new(value: u32) -> Self {
+        Self(TypeIndex::new(value))
+    }
 
     #[inline]
     pub fn intern(ty: TyKind) -> Self {
@@ -69,24 +82,6 @@ impl Ty {
     #[allow(dead_code)]
     pub fn kind(self) -> TyKind {
         crate::with_session_globals(|globals| globals.get_type_interner().get_ty(self))
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TypeIndex(u32);
-
-impl From<usize> for TypeIndex {
-    #[inline]
-    fn from(value: usize) -> Self {
-        debug_assert!(value <= u32::MAX as usize);
-        Self(value as u32)
-    }
-}
-
-impl From<TypeIndex> for usize {
-    #[inline]
-    fn from(value: TypeIndex) -> Self {
-        value.0 as usize
     }
 }
 
