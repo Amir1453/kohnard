@@ -1,0 +1,10 @@
+extern def print(n : int);
+
+void main() {
+  print(42);
+}
+
+auto test(a: int) -> int {
+  print(a);
+  return 5;
+}

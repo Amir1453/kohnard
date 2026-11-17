@@ -63,8 +63,7 @@ fn coalesce_blocks(bb: &mut BasicBlocks) {
     let predecessors = bb.predecessors();
     let mut tb_merged: Vec<(BlockIdx, BlockIdx)> = Vec::new();
 
-    let mut bb_iter = bb.blocks.iter_enumerated().peekable();
-    while let Some((idx, block)) = bb_iter.next() {
+    for (idx, block) in bb.blocks.iter_enumerated() {
         let block_succs: Vec<BlockIdx> = block.successors().collect();
 
         if block_succs.len() != 1 {

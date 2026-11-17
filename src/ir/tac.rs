@@ -240,10 +240,10 @@ impl TACInst {
     pub fn is_terminator(&self) -> bool {
         use TACInst::*;
 
-        match self {
-            UnconditionalJump(_) | ConditionalJump { .. } | Return(_) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            UnconditionalJump(_) | ConditionalJump { .. } | Return(_)
+        )
     }
 }
 

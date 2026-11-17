@@ -71,7 +71,7 @@ impl From<SymbolIndex> for usize {
     }
 }
 
-pub struct Interner(parking_lot::Mutex<InternerInner>);
+pub struct SymbolInterner(parking_lot::Mutex<InternerInner>);
 
 struct InternerInner {
     arena: DroplessArena,
@@ -80,7 +80,7 @@ struct InternerInner {
     hasher: hashbrown::DefaultHashBuilder,
 }
 
-impl Interner {
+impl SymbolInterner {
     pub fn new() -> Self {
         let inner = InternerInner {
             arena: Default::default(),

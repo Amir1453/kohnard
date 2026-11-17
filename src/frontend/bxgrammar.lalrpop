@@ -1,7 +1,8 @@
 use crate::frontend::ast;
 use crate::frontend::Symbol;
 use crate::frontend::tokens::{Token, LexicalError};
-use crate::types::Type;
+use crate::types::Ty;
+use crate::types::TyKind;
 
 use thin_vec::{thin_vec, ThinVec};
 
@@ -15,7 +16,11 @@ extern {
 
   enum Token {
     "DEF" => Token::KeywordDef,
+    "AUTO" => Token::KeywordAuto,
+    "FN" => Token::KeywordFn,
     "VAR" => Token::KeywordVar,
+    "LET" => Token::KeywordLet,
+    "MUT" => Token::KeywordMut,
     "INT" => Token::KeywordInt,
     "BOOL" => Token::KeywordBool,
     "VOID" => Token::KeywordVoid,
@@ -37,6 +42,7 @@ extern {
     "=" => Token::Assign,
     ";" => Token::Semicolon,
     ":" => Token::Colon,
+    "->" => Token::Arrow,
     "+" => Token::OpPlus,
     "-" => Token::OpMinus,
     "*" => Token::OpStar,
@@ -60,11 +66,13 @@ extern {
   }
 }
 
+// This is the * equivalent for ThinVec.
 Star<T>: ThinVec<T> = {
     => ThinVec::new(),
     <items:Plus<T>> => items,
 };
 
+// This is the + equivalent for ThinVec.
 Plus<T>: ThinVec<T> = {
     <item:T> => thin_vec![item],
 
@@ -81,14 +89,7 @@ pub BX: ast::Program = {
 Declaration: ast::Declaration = {
   <var_decl:VarDeclGlobal> => ast::Declaration::Variable(Box::new(var_decl)),
 
-  "DEF" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:(":" <Type>)?> "{" <stmts:Star<Statement>> "}"  => {
-    ast::Declaration::Proc {
-      proc_name,
-      proc_args,
-      return_type,
-      block: Box::new(ast::Block(stmts)),
-    }
-  }
+  <proc_decl:ProcDecl> => proc_decl,
 }
 
 VarDeclGlobal: ast::Variable = {
@@ -100,24 +101,78 @@ VarDeclGlobal: ast::Variable = {
   }
 }
 
-ProcArgs: ThinVec<(Symbol, Type)> = {
+ProcDecl: ast::Declaration = {
+  BXProcDecl,
+  RustProcDecl,
+  CProcDecl,
+}
+
+BXProcDecl: ast::Declaration = {
+  "DEF" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:(":" <Type>)?> "{" <stmts:Star<Statement>> "}"  => {
+    ast::Declaration::Proc {
+      proc_name,
+      proc_args,
+      return_type,
+      block: Box::new(ast::Block(stmts)),
+    }
+  }
+}
+
+RustProcDecl: ast::Declaration = {
+  "FN" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:("->" <Type>)?> "{" <stmts:Star<Statement>> "}"  => {
+    ast::Declaration::Proc {
+      proc_name,
+      proc_args,
+      return_type,
+      block: Box::new(ast::Block(stmts)),
+    }
+  }
+}
+
+CProcDecl: ast::Declaration = {
+  <rty:Type> <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" "{" <stmts:Star<Statement>> "}"  => {
+    ast::Declaration::Proc {
+      proc_name,
+      proc_args,
+      return_type: Some(rty),
+      block: Box::new(ast::Block(stmts)),
+    }
+  },
+
+  "AUTO" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:("->" <Type>)?> "{" <stmts:Star<Statement>> "}"  => {
+    ast::Declaration::Proc {
+      proc_name,
+      proc_args,
+      return_type,
+      block: Box::new(ast::Block(stmts)),
+    }
+  }
+}
+
+ProcArgs: ThinVec<(Symbol, TyKind)> = {
   <arg:"IDENT"> ":" <ty:Type> <mut arg_type_pair:Star<("," <"IDENT"> ":" <Type>)>> => {
     arg_type_pair.insert(0, (arg, ty));
     arg_type_pair
   }
 }
 
-Type: Type = {
-  "INT" => Type::Int,
-  "BOOL" => Type::Bool, 
-  "VOID" => Type::Void
+Type: TyKind = {
+  "INT" => TyKind::Int,
+  "BOOL" => TyKind::Bool, 
+  "VOID" => TyKind::Void,
+
+  "&" <ty:Type> => TyKind::Ref(Ty::intern(ty)),
+  "&" "MUT" <ty:Type> => TyKind::MutRef(Ty::intern(ty)),
+
+  "*" <ty:Type> => TyKind::Ptr(Ty::intern(ty)),
+  "*" "MUT" <ty:Type> => TyKind::MutPtr(Ty::intern(ty)),
 }
 
 Statement: ast::Statement = {
   <var_decl:VarDeclLocal> => ast::Statement::Variable(Box::new(var_decl)),
 
   <name:"IDENT"> "=" <value:Expression> ";" => {
-    ast::Statement::Assignment { name: name.into(), value }
+    ast::Statement::Assignment { name, value }
   },
 
   <expr:Expression> ";" => ast::Statement::Eval(expr),
@@ -194,6 +249,30 @@ Expression: Box<ast::Expression> = {
   "!" <value:Expression> => {
     Box::new(ast::Expression::UnaryOperation {
       operator: ast::Operator::LNot,
+      value,
+      ty: None
+    })
+  },
+
+  "&" <value:Expression> => {
+    Box::new(ast::Expression::UnaryOperation {
+      operator: ast::Operator::Ref,
+      value,
+      ty: None
+    })
+  },
+
+  "&" "MUT" <value:Expression> => {
+    Box::new(ast::Expression::UnaryOperation {
+      operator: ast::Operator::MutRef,
+      value,
+      ty: None
+    })
+  },
+
+  "*" <value:Expression> => {
+    Box::new(ast::Expression::UnaryOperation {
+      operator: ast::Operator::Deref,
       value,
       ty: None
     })
@@ -378,7 +457,7 @@ Term: Box<ast::Expression> = {
   },
 
   <name:"IDENT"> => {
-    Box::new(ast::Expression::Variable(name.into(), None))
+    Box::new(ast::Expression::Variable(name, None))
   },
 
   "TRUE" => {
@@ -395,7 +474,7 @@ Term: Box<ast::Expression> = {
 ProcCall: Box<ast::Expression> = {
   <proc_name:"IDENT"> "(" <proc_args:ProcCallArgs?> ")" => Box::new(
     ast::Expression::ProcCall {
-      proc_name: proc_name.into(), 
+      proc_name,
       proc_args, 
       ty: None
     }),

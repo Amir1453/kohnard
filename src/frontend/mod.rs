@@ -13,6 +13,6 @@ pub use bxgrammar::BXParser;
 pub use lexer::Lexer;
 pub use retchecker::RetChecker;
 pub use semchecker::SemChecker;
-pub use symbol::Interner;
+pub use symbol::SymbolInterner;
 pub use symbol::Symbol;
 pub use typechecker::TypeChecker;

@@ -1,0 +1,23 @@
+extern def print(n : int);
+
+def main() {
+  var x = 42 : int;
+
+  var r = &mut x : &mut;
+  // Cannot make mutable borrow when another mutable borrow is alive
+  var r2 = &mut x : &mut;
+
+  // r is accessed here. 
+  print(*r);
+}
+
+def another() {
+  var x = 42 : int;
+
+  var r = &mut x : &mut;
+  // Cannot make borrow when another mutable borrow is alive
+  var r2 = &x : &mut;
+
+  // r is accessed here. 
+  print(*r);
+}

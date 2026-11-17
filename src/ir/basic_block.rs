@@ -30,8 +30,8 @@ impl BasicBlocks {
     ///
     /// We use the leader-first algorithm to create the BasicBlocks.
     /// 1. Collect the leaders. An instruction is a leader, if it is the first
-    /// instruction, target of a control flow divergence, or it is placed after
-    /// a terminator.
+    ///    instruction, target of a control flow divergence, or it is placed after
+    ///    a terminator.
     /// 2. For each leader, create a Basic Block.
     /// 3. If there are multiple labels, map them to the same Block.
     /// 4. Push the instructions on the blocks, making sure that no fall-through exists.
@@ -134,7 +134,7 @@ impl BasicBlocks {
 
     /// Flattens the BasicBlocks into an instruction stream.
     pub fn serialize(mut self) -> InstBlock {
-        if self.blocks.len() == 0 {
+        if self.blocks.is_empty() {
             return InstBlock::new();
         }
 
@@ -236,7 +236,7 @@ impl petgraph::visit::GraphBase for BasicBlocks {
     type NodeId = BlockIdx;
 }
 
-impl<'bb> petgraph::visit::IntoNeighbors for &'bb BasicBlocks {
+impl petgraph::visit::IntoNeighbors for &BasicBlocks {
     type Neighbors = Successors;
 
     #[doc = r" Return an iterator of the neighbors of node `a`."]
@@ -308,7 +308,7 @@ impl BasicBlock {
     }
 
     pub fn is_terminator_init(&self) -> bool {
-        return !matches!(self.terminator, BlockTerminator::Uninit);
+        !matches!(self.terminator, BlockTerminator::Uninit)
     }
 
     pub fn set_terminator(&mut self, term: BlockTerminator) {

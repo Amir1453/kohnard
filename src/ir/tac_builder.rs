@@ -145,7 +145,7 @@ impl ProcBuilder {
         let name = Symbol::intern(name);
         let temp = self.fresh_temp();
 
-        self.variables.insert(name, temp.clone());
+        self.variables.insert(name, temp);
 
         temp
     }
@@ -155,7 +155,7 @@ impl ProcBuilder {
 
         self.variables
             .get(&name)
-            .cloned()
+            .copied()
             .unwrap_or_else(|| panic!("use of undefined variable `{}`", name))
     }
 
@@ -163,7 +163,7 @@ impl ProcBuilder {
         let name = Symbol::intern(name);
         let label = self.fresh_label();
 
-        self.labels.insert(name, label.clone());
+        self.labels.insert(name, label);
 
         label
     }
@@ -172,7 +172,7 @@ impl ProcBuilder {
         let sym = Symbol::intern(name);
 
         match self.labels.get(&sym) {
-            Some(label) => label.clone(),
+            Some(label) => *label,
             None => self.define_label(name),
         }
     }

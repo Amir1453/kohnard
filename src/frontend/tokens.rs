@@ -32,8 +32,16 @@ impl fmt::Display for LexicalError {
 pub enum Token {
     #[token("def")]
     KeywordDef,
+    #[token("auto")]
+    KeywordAuto,
+    #[token("fn")]
+    KeywordFn,
     #[token("var")]
     KeywordVar,
+    #[token("let")]
+    KeywordLet,
+    #[token("mut")]
+    KeywordMut,
     #[token("int")]
     KeywordInt,
     #[token("bool")]
@@ -78,6 +86,8 @@ pub enum Token {
     Semicolon,
     #[token(":")]
     Colon,
+    #[token("->")]
+    Arrow,
 
     #[token("+")]
     OpPlus,

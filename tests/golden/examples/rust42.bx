@@ -1,0 +1,10 @@
+extern def print(n : int);
+
+fn main() {
+  print(42);
+}
+
+fn test(a: int) -> int {
+  print(a);
+  return 5;
+}

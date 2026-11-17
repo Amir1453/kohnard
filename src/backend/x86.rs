@@ -288,16 +288,16 @@ impl Asm {
                 assert!(arg_count == self.params.len());
 
                 // first up to 6 into regs
-                for i in 0..self.params.len().min(6) {
-                    let a = self.params[i].clone();
+                for (i, reg) in param_regs.into_iter().enumerate().take(self.params.len()) {
+                    let a = self.params[i];
                     let src = self.temp_for(a);
-                    self.emit(format!("\tmovq\t{}, {}", src, param_regs[i]));
+                    self.emit(format!("\tmovq\t{}, {}", src, reg));
                 }
 
                 // rest pushed (reverse)
                 if self.params.len() > 6 {
                     for idx in (6..self.params.len()).rev() {
-                        let a = self.params[idx].clone();
+                        let a = self.params[idx];
                         let src = self.temp_for(a);
                         self.emit(format!("\tpushq\t{}", src));
                     }

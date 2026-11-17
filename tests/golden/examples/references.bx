@@ -1,0 +1,8 @@
+extern def print(n : int);
+
+def main() {
+  var x = 42 : int;
+  var r = &x: &int;
+  *r = 43;
+  print(*r);
+}
