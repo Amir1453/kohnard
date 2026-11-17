@@ -16,26 +16,50 @@ pub type Promise<T> = Option<T>;
 
 // BX types
 
+/// Represents the possible types in the language.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TyKind {
+    /// Represents an integer type.
     Int,
+
+    /// Represents a bool.
     Bool,
+
+    /// Represents a void type, i.e. the unary type.
     Void,
 
+    /// A type that was promised 3000 years ago.
+    Promised,
+
+    /// A placeholder type for a type that could not be computed.
+    Error,
+
+    /// Represents a pointer to a type, *T.
     Ptr(Ty),
+
+    /// Represents a mutable pointer to a type, *mut T.
     MutPtr(Ty),
 
+    /// Represents a reference to a type, &T.
     Ref(Ty),
-    MutRef(Ty),
 
-    Promised,
-    Error,
+    /// Represents a mutable reference to a type, &T.
+    MutRef(Ty),
 }
 
+/// Represents an entry in the Type Interner.
+/// Similar to how Symbol represents an underlying String.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Ty(TypeIndex);
 
+#[allow(dead_code)]
 impl Ty {
+    pub const INT: Ty = Ty(TypeIndex(0));
+    pub const BOOL: Ty = Ty(TypeIndex(1));
+    pub const VOID: Ty = Ty(TypeIndex(2));
+    pub const PROMISED: Ty = Ty(TypeIndex(3));
+    pub const ERROR: Ty = Ty(TypeIndex(4));
+
     #[inline]
     pub fn intern(ty: TyKind) -> Self {
         crate::with_session_globals(|globals| globals.get_type_interner().intern_ty(ty))
@@ -83,7 +107,13 @@ impl TypeInterner {
         };
 
         let interner = Self(parking_lot::Mutex::new(inner));
-        for ty in [TyKind::Int, TyKind::Bool, TyKind::Void] {
+        for ty in [
+            TyKind::Int,
+            TyKind::Bool,
+            TyKind::Void,
+            TyKind::Promised,
+            TyKind::Error,
+        ] {
             interner.intern_ty(ty);
         }
         interner
