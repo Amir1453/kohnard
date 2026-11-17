@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use thin_vec::ThinVec;
 
-use crate::frontend::{Symbol, ast::*};
+use crate::Symbol;
+use crate::frontend::ast::*;
 use crate::ir::tac::*;
 use crate::structs::Stack;
 use crate::types::TyKind;

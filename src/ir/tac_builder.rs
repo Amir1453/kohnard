@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use thin_vec::ThinVec;
 
-use crate::frontend::Symbol;
+use crate::Symbol;
 use crate::ir::tac::{
     InstBlock, Label, ProcDecl, TACBinaryOpcode, TACInst, TACJumpOpcode, TACTemp,
 };

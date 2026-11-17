@@ -1,5 +1,5 @@
+use crate::Symbol;
 use crate::frontend::ast;
-use crate::frontend::Symbol;
 use crate::frontend::tokens::{Token, LexicalError};
 use crate::types::Ty;
 use crate::types::TyKind;

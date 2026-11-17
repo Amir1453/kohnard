@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 use std::iter::zip;
 
-use crate::frontend::{Symbol, ast::*};
+use crate::Symbol;
+use crate::frontend::ast::*;
 use crate::structs::{ErrorAggregate, Stack};
 use crate::types::Span;
 

@@ -2,14 +2,14 @@
 
 /// Globals for the compiler session. Contains the symbol interner.
 pub struct SessionGlobals {
-    symbol_interner: crate::frontend::SymbolInterner,
+    symbol_interner: crate::symbol::SymbolInterner,
     type_interner: crate::types::TypeInterner,
 }
 
 impl SessionGlobals {
     fn new() -> SessionGlobals {
         SessionGlobals {
-            symbol_interner: crate::frontend::SymbolInterner::new(),
+            symbol_interner: crate::symbol::SymbolInterner::new(),
             type_interner: crate::types::TypeInterner::new(),
         }
     }
@@ -17,7 +17,7 @@ impl SessionGlobals {
     /// Returns a reference to the symbol interner.
     #[must_use]
     #[inline(always)]
-    pub const fn get_symbol_interner(&self) -> &crate::frontend::SymbolInterner {
+    pub const fn get_symbol_interner(&self) -> &crate::symbol::SymbolInterner {
         &self.symbol_interner
     }
 

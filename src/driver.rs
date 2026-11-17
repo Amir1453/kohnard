@@ -3,10 +3,11 @@ use std::path::PathBuf;
 
 use anyhow::bail;
 
+use crate::Symbol;
 use crate::backend::CodegenBackend;
 use crate::backend::x86;
 use crate::frontend::ast::{Declaration, Program};
-use crate::frontend::{BXParser, Lexer, RetChecker, SemChecker, Symbol, TypeChecker};
+use crate::frontend::{BXParser, Lexer, RetChecker, SemChecker, TypeChecker};
 use crate::globals;
 use crate::ir::MM;
 use crate::opt::Optimizer;

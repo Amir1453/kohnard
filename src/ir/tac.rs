@@ -3,7 +3,7 @@ use std::ops::{Add, Deref, DerefMut};
 
 use thin_vec::ThinVec;
 
-use crate::frontend::Symbol;
+use crate::Symbol;
 use crate::frontend::ast::Operator;
 
 #[derive(Clone, Hash, PartialEq)]

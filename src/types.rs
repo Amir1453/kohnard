@@ -6,7 +6,7 @@ use hashbrown::hash_table::Entry;
 use thin_vec::ThinVec;
 use typed_index_collections::TiVec as IndexVec;
 
-use crate::frontend::Symbol;
+use crate::Symbol;
 
 pub type Span = (usize, usize);
 

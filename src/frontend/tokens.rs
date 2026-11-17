@@ -3,7 +3,7 @@ use logos::Logos;
 use std::fmt;
 use std::num::ParseIntError;
 
-use crate::frontend::Symbol;
+use crate::Symbol;
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub enum LexicalError {

@@ -2,13 +2,15 @@ mod backend;
 mod frontend;
 mod ir;
 mod opt;
-
-mod globals;
 mod structs;
 
 pub mod driver;
+
+mod globals;
 mod index;
 mod options;
+mod symbol;
 mod types;
 
 use globals::with_session_globals;
+use symbol::Symbol;

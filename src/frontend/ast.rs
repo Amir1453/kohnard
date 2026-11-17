@@ -1,4 +1,4 @@
-use super::Symbol;
+use crate::Symbol;
 use crate::types::{Promise, TyKind};
 
 use thin_vec::ThinVec;
@@ -40,7 +40,6 @@ pub enum Statement {
     //     name: Symbol,
     //     value: Box<Expression>,
     // },
-
     Eval(Box<Expression>),
 
     Return(Option<Box<Expression>>),
