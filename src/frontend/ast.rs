@@ -1,5 +1,5 @@
 use crate::Symbol;
-use crate::types::{Promise, TyKind};
+use crate::types::{Promise, Ty};
 
 use thin_vec::ThinVec;
 
@@ -10,8 +10,8 @@ pub enum Declaration {
 
     Proc {
         proc_name: Symbol,
-        proc_args: Option<ThinVec<(Symbol, TyKind)>>,
-        return_type: Option<TyKind>,
+        proc_args: Option<ThinVec<(Symbol, Ty)>>,
+        return_type: Option<Ty>,
         block: Box<Block>,
     },
 }
@@ -19,12 +19,25 @@ pub enum Declaration {
 pub struct Variable {
     pub names: ThinVec<Symbol>,
     pub values: ThinVec<Box<Expression>>,
-    pub ty: TyKind,
+    pub ty: Ty,
     #[allow(unused)]
     pub scope: ScopeState,
 }
 
+// pub struct ProcDecl {
+//     pub proc_name: (),
+//     pub proc_args: (),
+//     pub return_type: (),
+//     pub block: (),
+//     pub span: (),
+// }
+
 pub struct Block(pub ThinVec<Statement>);
+
+// pub struct Statement {
+//     pub kind: (),
+//     pub span: (),
+// }
 
 pub enum Statement {
     Variable(Box<Variable>),
@@ -58,8 +71,14 @@ pub enum Statement {
     Jump(JumpState),
 }
 
+// pub struct Expr {
+//     pub id: (),
+//     pub kind: (),
+//     pub span: (),
+// }
+
 pub enum Expression {
-    Variable(Symbol, Promise<TyKind>),
+    Variable(Symbol, Promise<Ty>),
     Number(i64),
     Bool(bool),
 
@@ -67,31 +86,31 @@ pub enum Expression {
         lhs: Box<Expression>,
         operator: Operator,
         rhs: Box<Expression>,
-        ty: Promise<TyKind>,
+        ty: Promise<Ty>,
     },
 
     UnaryOperation {
         operator: Operator,
         value: Box<Expression>,
-        ty: Promise<TyKind>,
+        ty: Promise<Ty>,
     },
 
     ProcCall {
         proc_name: Symbol,
         proc_args: Option<ThinVec<Box<Expression>>>,
-        ty: Promise<TyKind>,
+        ty: Promise<Ty>,
     },
 }
 
 impl Expression {
-    pub fn get_type(&self) -> TyKind {
+    pub fn get_type(&self) -> Ty {
         match self {
-            Expression::Variable(_, ty) => ty.unwrap_or(TyKind::Promised),
-            Expression::Number(_) => TyKind::Int,
-            Expression::Bool(_) => TyKind::Bool,
-            Expression::UnaryOperation { ty, .. } => ty.unwrap_or(TyKind::Promised),
-            Expression::BinaryOperation { ty, .. } => ty.unwrap_or(TyKind::Promised),
-            Expression::ProcCall { ty, .. } => ty.unwrap_or(TyKind::Promised),
+            Expression::Variable(_, ty) => ty.unwrap_or(Ty::PROMISED),
+            Expression::Number(_) => Ty::INT,
+            Expression::Bool(_) => Ty::BOOL,
+            Expression::UnaryOperation { ty, .. } => ty.unwrap_or(Ty::PROMISED),
+            Expression::BinaryOperation { ty, .. } => ty.unwrap_or(Ty::PROMISED),
+            Expression::ProcCall { ty, .. } => ty.unwrap_or(Ty::PROMISED),
         }
     }
 }

@@ -149,23 +149,23 @@ CProcDecl: ast::Declaration = {
   }
 }
 
-ProcArgs: ThinVec<(Symbol, TyKind)> = {
+ProcArgs: ThinVec<(Symbol, Ty)> = {
   <arg:"IDENT"> ":" <ty:Type> <mut arg_type_pair:Star<("," <"IDENT"> ":" <Type>)>> => {
     arg_type_pair.insert(0, (arg, ty));
     arg_type_pair
   }
 }
 
-Type: TyKind = {
-  "INT" => TyKind::Int,
-  "BOOL" => TyKind::Bool, 
-  "VOID" => TyKind::Void,
+Type: Ty = {
+  "INT" => Ty::INT,
+  "BOOL" => Ty::BOOL, 
+  "VOID" => Ty::VOID,
 
-  "&" <ty:Type> => TyKind::Ref(Ty::intern(ty)),
-  "&" "MUT" <ty:Type> => TyKind::MutRef(Ty::intern(ty)),
+  "&" <ty:Type> => Ty::intern(TyKind::Ref(ty)),
+  "&" "MUT" <ty:Type> => Ty::intern(TyKind::MutRef(ty)),
 
-  "*" <ty:Type> => TyKind::Ptr(Ty::intern(ty)),
-  "*" "MUT" <ty:Type> => TyKind::MutPtr(Ty::intern(ty)),
+  "*" <ty:Type> => Ty::intern(TyKind::Ptr(ty)),
+  "*" "MUT" <ty:Type> => Ty::intern(TyKind::MutPtr(ty)),
 }
 
 Statement: ast::Statement = {

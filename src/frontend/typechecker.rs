@@ -4,7 +4,7 @@ use std::iter::zip;
 use crate::Symbol;
 use crate::frontend::ast::*;
 use crate::structs::{ErrorAggregate, Stack};
-use crate::types::{ProcType, SemanticType, Span, TyKind};
+use crate::types::{ProcType, SemanticType, Span, Ty, TyKind};
 
 pub struct TypeChecker {
     scopes: Stack<HashMap<Symbol, SemanticType>>,
@@ -117,7 +117,7 @@ impl TypeChecker {
                         if let Some(exp) = expr {
                             self.check_expression(exp);
                             let ty = exp.get_type();
-                            if ty != TyKind::Void {
+                            if ty != Ty::VOID {
                                 self.collect_error(TypeErrorType::ReturnTypeMismatchSub, None);
                             }
                         }
@@ -131,7 +131,7 @@ impl TypeChecker {
                 else_branch,
             } => {
                 self.check_expression(condition);
-                if condition.get_type() != TyKind::Bool {
+                if condition.get_type() != Ty::BOOL {
                     self.collect_error(TypeErrorType::ConditionNotBool, None);
                 }
 
@@ -144,7 +144,7 @@ impl TypeChecker {
 
             Statement::While { condition, block } => {
                 self.check_expression(condition);
-                if condition.get_type() != TyKind::Bool {
+                if condition.get_type() != Ty::BOOL {
                     self.collect_error(TypeErrorType::ConditionNotBool, None);
                 }
 
@@ -183,37 +183,53 @@ impl TypeChecker {
                 let value_type = value.get_type();
                 match operator {
                     Operator::Neg => {
-                        if value_type != TyKind::Int {
+                        if value_type != Ty::INT {
                             self.collect_error(TypeErrorType::OpNegMismatch, None);
-                            *ty = Some(TyKind::Error);
+                            *ty = Some(Ty::ERROR);
                         } else {
-                            *ty = Some(TyKind::Int);
+                            *ty = Some(Ty::INT);
                         }
                     }
 
                     Operator::Tilde => {
-                        if value_type != TyKind::Int {
+                        if value_type != Ty::INT {
                             self.collect_error(TypeErrorType::OpTildeMismatch, None);
-                            *ty = Some(TyKind::Error);
+                            *ty = Some(Ty::ERROR);
                         } else {
-                            *ty = Some(TyKind::Int);
+                            *ty = Some(Ty::INT);
                         }
                     }
 
                     Operator::LNot => {
-                        if value_type != TyKind::Bool {
+                        if value_type != Ty::BOOL {
                             self.collect_error(TypeErrorType::OpLNotMismatch, None);
-                            *ty = Some(TyKind::Error);
+                            *ty = Some(Ty::ERROR);
                         } else {
-                            *ty = Some(TyKind::Bool);
+                            *ty = Some(Ty::BOOL);
                         }
                     }
 
-                    Operator::Ref => {}
+                    Operator::Ref => {
+                        *ty = Some(Ty::intern(TyKind::Ref(value_type)));
+                    }
 
-                    Operator::MutRef => {}
+                    Operator::MutRef => {
+                        *ty = Some(Ty::intern(TyKind::MutRef(value_type)));
+                    }
 
-                    Operator::Deref => {}
+                    Operator::Deref => {
+                        *ty = Some(match value_type.kind() {
+                            TyKind::Ref(inner)
+                            | TyKind::MutRef(inner)
+                            | TyKind::Ptr(inner)
+                            | TyKind::MutPtr(inner) => inner,
+                            TyKind::Error => Ty::ERROR,
+                            _ => {
+                                self.collect_error(TypeErrorType::OpDerefMismatch, None);
+                                Ty::ERROR
+                            }
+                        });
+                    }
 
                     _ => {}
                 }
@@ -233,38 +249,38 @@ impl TypeChecker {
                 use Operator::*;
                 let exp_type = match operator {
                     Plus | Minus | Star | Slash | Mod => {
-                        if lhs_type == TyKind::Int && rhs_type == TyKind::Int {
-                            Some(TyKind::Int)
+                        if lhs_type == Ty::INT && rhs_type == Ty::INT {
+                            Some(Ty::INT)
                         } else {
                             self.collect_error(TypeErrorType::OpArithMismatch, None);
-                            Some(TyKind::Error)
+                            Some(Ty::ERROR)
                         }
                     }
 
                     Pipe | Caret | Ampersand | LShift | RShift => {
-                        if lhs_type == TyKind::Int && rhs_type == TyKind::Int {
-                            Some(TyKind::Int)
+                        if lhs_type == Ty::INT && rhs_type == Ty::INT {
+                            Some(Ty::INT)
                         } else {
                             self.collect_error(TypeErrorType::OpBitwiseMismatch, None);
-                            Some(TyKind::Error)
+                            Some(Ty::ERROR)
                         }
                     }
 
                     Equal | NEqual | L | LTE | G | GTE => {
-                        if lhs_type == TyKind::Int && rhs_type == TyKind::Int {
-                            Some(TyKind::Bool)
+                        if lhs_type == Ty::INT && rhs_type == Ty::INT {
+                            Some(Ty::BOOL)
                         } else {
                             self.collect_error(TypeErrorType::OpCompareMismatch, None);
-                            Some(TyKind::Error)
+                            Some(Ty::ERROR)
                         }
                     }
 
                     LAnd | LOr => {
-                        if lhs_type == TyKind::Bool && rhs_type == TyKind::Bool {
-                            Some(TyKind::Bool)
+                        if lhs_type == Ty::BOOL && rhs_type == Ty::BOOL {
+                            Some(Ty::BOOL)
                         } else {
                             self.collect_error(TypeErrorType::OpLogicalMismatch, None);
-                            Some(TyKind::Error)
+                            Some(Ty::ERROR)
                         }
                     }
 
@@ -279,15 +295,16 @@ impl TypeChecker {
                 ty,
             } => {
                 if proc_name.as_str() == "print" {
+                    *ty = Some(Ty::VOID);
                     let arg = proc_args.as_mut().unwrap().first_mut().unwrap();
                     self.check_expression(arg);
                     let arg_type = arg.get_type();
-                    if arg_type != TyKind::Int && arg_type != TyKind::Bool {
+                    if arg_type != Ty::INT && arg_type != Ty::BOOL {
                         self.collect_error(TypeErrorType::TypeMismatchProcArgument, None);
                     }
                 } else {
                     let proc_type = self.find_proc_type(proc_name);
-                    *ty = Some(proc_type.return_type.unwrap_or(TyKind::Void));
+                    *ty = Some(proc_type.return_type.unwrap_or(Ty::VOID));
 
                     if let (Some(args), Some(arg_supposed_types)) =
                         (proc_args, proc_type.args_type.as_ref())
@@ -311,13 +328,13 @@ impl TypeChecker {
 
     // Stack helpers
 
-    pub fn current_scope_insert_simple(&mut self, name: Symbol, ty: TyKind) {
+    pub fn current_scope_insert_simple(&mut self, name: Symbol, ty: Ty) {
         if let Some(current) = self.scopes.top_mut() {
             current.insert(name, SemanticType::SimpleType(ty));
         }
     }
 
-    pub fn find_simple_type(&self, name: &Symbol) -> TyKind {
+    pub fn find_simple_type(&self, name: &Symbol) -> Ty {
         for s in self.scopes.iter().rev() {
             if let Some(t) = s.get(name)
                 && let SemanticType::SimpleType(ty) = t
@@ -325,7 +342,7 @@ impl TypeChecker {
                 return *ty;
             }
         }
-        TyKind::Error
+        Ty::ERROR
     }
 
     pub fn find_proc_type(&self, name: &Symbol) -> ProcType {
@@ -368,6 +385,8 @@ pub enum TypeErrorType {
     OpTildeMismatch,
     #[error("Wrong type used with !")]
     OpLNotMismatch,
+    #[error("Cannot dereference this type")]
+    OpDerefMismatch,
     #[error("Wrong type used with arithmetics")]
     OpArithMismatch,
     #[error("Wrong type used with bitwise")]

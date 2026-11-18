@@ -146,12 +146,12 @@ impl TypeInterner {
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct ProcType {
-    pub args_type: Option<ThinVec<(Symbol, TyKind)>>,
-    pub return_type: Option<TyKind>,
+    pub args_type: Option<ThinVec<(Symbol, Ty)>>,
+    pub return_type: Option<Ty>,
 }
 
 #[derive(Clone)]
 pub enum SemanticType {
-    SimpleType(TyKind),
+    SimpleType(Ty),
     ProcType(ProcType),
 }

@@ -6,7 +6,7 @@ use crate::Symbol;
 use crate::frontend::ast::*;
 use crate::ir::tac::*;
 use crate::structs::Stack;
-use crate::types::TyKind;
+use crate::types::Ty;
 
 pub struct MM {
     cutac: CUTAC,
@@ -238,7 +238,7 @@ impl MM {
     fn munch_expression(&mut self, expr: Expression) -> TACTemp {
         use TACInst::*;
 
-        if expr.get_type() == TyKind::Bool {
+        if expr.get_type() == Ty::BOOL {
             let temp = self.fresh_temp();
             let tlabel = self.fresh_label();
             let flabel = self.fresh_label();
@@ -316,7 +316,7 @@ impl MM {
                     let arg_count = proc_args.as_ref().map(|v| v.len()).unwrap_or(0);
 
                     let mut iexp = proc_args.into_iter().flatten().enumerate();
-                    let mut first_exp_type = TyKind::Error;
+                    let mut first_exp_type = Ty::ERROR;
 
                     if let Some((i, expr)) = iexp.next() {
                         let exp = *expr;
@@ -340,14 +340,14 @@ impl MM {
                     let result = self.fresh_temp();
                     if proc_name.as_str() == "print" {
                         match first_exp_type {
-                            TyKind::Int => {
+                            Ty::INT => {
                                 self.emit(ProcCall {
                                     proc_name: Symbol::intern("__print_int"),
                                     arg_count,
                                     result,
                                 });
                             }
-                            TyKind::Bool => {
+                            Ty::BOOL => {
                                 self.emit(ProcCall {
                                     proc_name: Symbol::intern("__print_bool"),
                                     arg_count,

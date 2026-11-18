@@ -1,5 +1,9 @@
+//! Creates a struct type `S` that can be used as an index with `IndexVec` and so on.
+
 macro_rules! index_type {
     ($name:ident) => {
+        /// The underlying index is stored as a NonZeroU32, which allows for a size optimization of
+        /// size_of::Option<S>() == size_of<S>().  
         #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
         #[repr(transparent)]
         pub struct $name(::std::num::NonZeroU32);
