@@ -158,8 +158,8 @@ Statement: ast::Statement = {
 StatementKind: ast::StatementKind = {
   <var_decl:VarDecl> => ast::StatementKind::Variable(Box::new(var_decl)),
 
-  <name:"IDENT"> "=" <value:Expression> ";" => {
-    ast::StatementKind::Assignment { name, value }
+  <target:Expression> "=" <value:Expression> ";" => {
+    ast::StatementKind::Assignment { target, value }
   },
 
   <expr:Expression> ";" => ast::StatementKind::Eval(expr),

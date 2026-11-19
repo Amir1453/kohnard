@@ -74,8 +74,8 @@ impl SemChecker {
                 self.check_block(block);
             }
 
-            StatementKind::Assignment { name, value } => {
-                self.check_declared(name);
+            StatementKind::Assignment { target, value } => {
+                self.check_expression(target);
                 self.check_expression(value);
             }
 

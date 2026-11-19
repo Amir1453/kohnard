@@ -82,10 +82,11 @@ impl TypeChecker {
                 self.check_block(block);
             }
 
-            StatementKind::Assignment { name, value } => {
+            StatementKind::Assignment { target, value } => {
+                self.check_expression(target);
                 self.check_expression(value);
                 let value_type = value.get_type();
-                if self.find_simple_type(name) != value_type {
+                if target.get_type() != value_type {
                     self.collect_error(TypeErrorType::TypeMismatchAssign, None);
                 }
             }

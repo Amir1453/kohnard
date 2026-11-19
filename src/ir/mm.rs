@@ -141,7 +141,10 @@ impl MM {
                 self.munch_variable(*variable);
             }
 
-            StatementKind::Assignment { name, value } => {
+            StatementKind::Assignment { target, value } => {
+                let ExpressionKind::Variable(name, _) = target.kind else {
+                    unreachable!("only variable assignment targets are currently supported");
+                };
                 let temp = self.munch_expression(*value);
                 self.emit(Copi {
                     destination: self.current_var_get(&name),
