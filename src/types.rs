@@ -8,8 +8,6 @@ use typed_index_collections::TiVec as IndexVec;
 
 use crate::Symbol;
 
-pub type Span = (usize, usize);
-
 pub type Name = CompactString;
 
 pub type Promise<T> = Option<T>;

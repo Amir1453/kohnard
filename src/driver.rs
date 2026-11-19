@@ -87,17 +87,12 @@ impl Driver {
                         }
                     }
 
-                    Declaration::Proc {
-                        proc_name,
-                        proc_args,
-                        return_type,
-                        ..
-                    } => {
+                    Declaration::Proc(proc) => {
                         let ty = SemanticType::ProcType(ProcType {
-                            args_type: proc_args.clone(),
-                            return_type: *return_type,
+                            args_type: proc.proc_args.clone(),
+                            return_type: proc.return_type,
                         });
-                        insert_global_decl(*proc_name, ty)?
+                        insert_global_decl(proc.proc_name, ty)?
                     }
                 }
             }

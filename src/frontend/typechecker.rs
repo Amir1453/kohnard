@@ -3,8 +3,9 @@ use std::iter::zip;
 
 use crate::Symbol;
 use crate::frontend::ast::*;
+use crate::span::Span;
 use crate::structs::{ErrorAggregate, Stack};
-use crate::types::{ProcType, SemanticType, Span, Ty, TyKind};
+use crate::types::{ProcType, SemanticType, Ty, TyKind};
 
 pub struct TypeChecker {
     scopes: Stack<HashMap<Symbol, SemanticType>>,
@@ -34,20 +35,15 @@ impl TypeChecker {
     fn check_program(&mut self, program: &mut Program) {
         for decl in &mut program.0 {
             match decl {
-                Declaration::Proc {
-                    proc_name,
-                    block,
-                    proc_args,
-                    ..
-                } => {
-                    self.current_proc_name = Some(*proc_name);
+                Declaration::Proc(proc) => {
+                    self.current_proc_name = Some(proc.proc_name);
                     self.scopes.push(HashMap::new());
 
-                    for (name, ty) in proc_args.iter_mut().flatten() {
+                    for (name, ty) in proc.proc_args.iter_mut().flatten() {
                         self.current_scope_insert_simple(*name, *ty);
                     }
 
-                    self.check_block(block);
+                    self.check_block(&mut proc.block);
 
                     self.scopes.pop();
                     self.current_proc_name = None;
@@ -72,21 +68,21 @@ impl TypeChecker {
 
     fn check_block(&mut self, block: &mut Block) {
         self.scopes.push(HashMap::new());
-        for stmt in &mut block.0 {
+        for stmt in &mut block.statements {
             self.check_statement(stmt);
         }
         self.scopes.pop();
     }
 
     fn check_statement(&mut self, stmt: &mut Statement) {
-        match stmt {
-            Statement::Variable(var) => self.check_variable(var),
+        match &mut stmt.kind {
+            StatementKind::Variable(var) => self.check_variable(var),
 
-            Statement::Block(block) => {
+            StatementKind::Block(block) => {
                 self.check_block(block);
             }
 
-            Statement::Assignment { name, value } => {
+            StatementKind::Assignment { name, value } => {
                 self.check_expression(value);
                 let value_type = value.get_type();
                 if self.find_simple_type(name) != value_type {
@@ -94,9 +90,9 @@ impl TypeChecker {
                 }
             }
 
-            Statement::Eval(expr) => self.check_expression(expr),
+            StatementKind::Eval(expr) => self.check_expression(expr),
 
-            Statement::Return(expr) => {
+            StatementKind::Return(expr) => {
                 match self
                     .find_proc_type(&self.current_proc_name.unwrap())
                     .return_type
@@ -125,7 +121,7 @@ impl TypeChecker {
                 }
             }
 
-            Statement::If {
+            StatementKind::If {
                 condition,
                 then_block,
                 else_branch,
@@ -142,7 +138,7 @@ impl TypeChecker {
                 }
             }
 
-            Statement::While { condition, block } => {
+            StatementKind::While { condition, block } => {
                 self.check_expression(condition);
                 if condition.get_type() != Ty::BOOL {
                     self.collect_error(TypeErrorType::ConditionNotBool, None);
@@ -151,7 +147,7 @@ impl TypeChecker {
                 self.check_block(block);
             }
 
-            Statement::Jump(_) => {}
+            StatementKind::Jump(_) => {}
         }
     }
 
@@ -169,12 +165,12 @@ impl TypeChecker {
     }
 
     fn check_expression(&mut self, expr: &mut Expression) {
-        match expr {
-            Expression::Variable(name, ty) => {
+        match &mut expr.kind {
+            ExpressionKind::Variable(name, ty) => {
                 *ty = Some(self.find_simple_type(name));
             }
 
-            Expression::UnaryOperation {
+            ExpressionKind::UnaryOperation {
                 operator,
                 value,
                 ty,
@@ -235,7 +231,7 @@ impl TypeChecker {
                 }
             }
 
-            Expression::BinaryOperation {
+            ExpressionKind::BinaryOperation {
                 lhs,
                 operator,
                 rhs,
@@ -289,7 +285,7 @@ impl TypeChecker {
                 *ty = exp_type;
             }
 
-            Expression::ProcCall {
+            ExpressionKind::ProcCall {
                 proc_name,
                 proc_args,
                 ty,

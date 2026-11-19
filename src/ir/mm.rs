@@ -4,6 +4,7 @@ use thin_vec::ThinVec;
 
 use crate::Symbol;
 use crate::frontend::ast::*;
+use crate::ir::tac::ProcDecl as TACProcDecl;
 use crate::ir::tac::*;
 use crate::structs::Stack;
 use crate::types::Ty;
@@ -45,12 +46,14 @@ impl MM {
                     self.munch_global_variable(*var);
                 }
 
-                Declaration::Proc {
-                    proc_name,
-                    proc_args,
-                    return_type,
-                    block,
-                } => {
+                Declaration::Proc(proc) => {
+                    let crate::frontend::ast::ProcDecl {
+                        proc_name,
+                        proc_args,
+                        return_type,
+                        block,
+                        ..
+                    } = *proc;
                     self.vars.push(HashMap::new());
 
                     let arguments: Option<ThinVec<Symbol>> =
@@ -98,7 +101,7 @@ impl MM {
                         instructions.push(Return(None));
                     }
 
-                    let proc_decl = ProcDecl::new(proc_name, arguments, instructions);
+                    let proc_decl = TACProcDecl::new(proc_name, arguments, instructions);
                     self.cutac.push(TACDeclaration::ProcDecl(proc_decl));
 
                     self.vars.pop();
@@ -110,9 +113,9 @@ impl MM {
 
     fn munch_global_variable(&mut self, var: Variable) {
         for (name, value_expr) in var.names.into_iter().zip(var.values) {
-            let value = match *value_expr {
-                Expression::Number(num) => num,
-                Expression::Bool(boo) => boo.into(),
+            let value = match value_expr.kind {
+                ExpressionKind::Number(num) => num,
+                ExpressionKind::Bool(boo) => boo.into(),
                 _ => -42,
             };
             let global = GlobalVarDecl::new(name, value);
@@ -124,7 +127,7 @@ impl MM {
 
     fn munch_block(&mut self, block: Block) {
         self.vars.push(HashMap::new());
-        for stmt in block.0 {
+        for stmt in block.statements {
             self.munch_statement(stmt);
         }
         self.vars.pop();
@@ -133,12 +136,12 @@ impl MM {
     fn munch_statement(&mut self, stmt: Statement) {
         use TACInst::*;
 
-        match stmt {
-            Statement::Variable(variable) => {
+        match stmt.kind {
+            StatementKind::Variable(variable) => {
                 self.munch_variable(*variable);
             }
 
-            Statement::Assignment { name, value } => {
+            StatementKind::Assignment { name, value } => {
                 let temp = self.munch_expression(*value);
                 self.emit(Copi {
                     destination: self.current_var_get(&name),
@@ -146,15 +149,15 @@ impl MM {
                 });
             }
 
-            Statement::Block(block) => {
+            StatementKind::Block(block) => {
                 self.munch_block(*block);
             }
 
-            Statement::Eval(expression) => {
+            StatementKind::Eval(expression) => {
                 self.munch_expression(*expression);
             }
 
-            Statement::Return(expression) => match expression {
+            StatementKind::Return(expression) => match expression {
                 Some(exp) => {
                     let temp = self.munch_expression(*exp);
                     self.emit(Return(Some(temp)));
@@ -162,7 +165,7 @@ impl MM {
                 None => self.emit(Return(None)),
             },
 
-            Statement::If {
+            StatementKind::If {
                 condition,
                 then_block,
                 else_branch,
@@ -184,7 +187,7 @@ impl MM {
                 self.emit_label(olabel);
             }
 
-            Statement::While { condition, block } => {
+            StatementKind::While { condition, block } => {
                 let clabel = self.fresh_label();
                 let blabel = self.fresh_label();
                 let olabel = self.fresh_label();
@@ -204,7 +207,7 @@ impl MM {
                 self.loop_stack.pop();
             }
 
-            Statement::Jump(state) => match state {
+            StatementKind::Jump(state) => match state {
                 JumpState::Break => {
                     if let Some((_, brk)) = self.loop_stack.top().copied() {
                         self.emit(UnconditionalJump(brk))
@@ -259,10 +262,10 @@ impl MM {
 
             temp
         } else {
-            match expr {
-                Expression::Variable(name, ..) => self.current_var_get(&name),
+            match expr.kind {
+                ExpressionKind::Variable(name, ..) => self.current_var_get(&name),
 
-                Expression::Number(num) => {
+                ExpressionKind::Number(num) => {
                     let temp = self.fresh_temp();
                     self.emit(Const {
                         destination: temp,
@@ -271,7 +274,7 @@ impl MM {
                     temp
                 }
 
-                Expression::BinaryOperation {
+                ExpressionKind::BinaryOperation {
                     lhs,
                     operator,
                     rhs,
@@ -291,7 +294,7 @@ impl MM {
                     temp
                 }
 
-                Expression::UnaryOperation {
+                ExpressionKind::UnaryOperation {
                     operator,
                     value,
                     ty: _,
@@ -308,7 +311,7 @@ impl MM {
                     temp
                 }
 
-                Expression::ProcCall {
+                ExpressionKind::ProcCall {
                     proc_name,
                     proc_args,
                     ..
@@ -376,8 +379,8 @@ impl MM {
         use TACInst::*;
         use TACJumpOpcode::*;
 
-        match expr {
-            Expression::Variable(name, ..) => {
+        match expr.kind {
+            ExpressionKind::Variable(name, ..) => {
                 let temp = self.current_var_get(&name);
 
                 self.emit(ConditionalJump {
@@ -389,12 +392,12 @@ impl MM {
                 self.emit(UnconditionalJump(tlabel));
             }
 
-            Expression::Bool(boo) => match boo {
+            ExpressionKind::Bool(boo) => match boo {
                 true => self.emit(UnconditionalJump(tlabel)),
                 false => self.emit(UnconditionalJump(flabel)),
             },
 
-            Expression::BinaryOperation {
+            ExpressionKind::BinaryOperation {
                 lhs, operator, rhs, ..
             } => {
                 use Operator::*;
@@ -440,7 +443,7 @@ impl MM {
                 }
             }
 
-            Expression::UnaryOperation {
+            ExpressionKind::UnaryOperation {
                 operator, value, ..
             } => {
                 use Operator::*;
@@ -449,7 +452,7 @@ impl MM {
                 }
             }
 
-            Expression::ProcCall {
+            ExpressionKind::ProcCall {
                 proc_name,
                 proc_args,
                 ..

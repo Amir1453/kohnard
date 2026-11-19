@@ -1,4 +1,4 @@
-use crate::types::Span;
+use crate::span::Span;
 
 #[derive(Debug)]
 pub struct ErrorAggregate<T: std::error::Error>(Vec<ErrorBy<T>>);

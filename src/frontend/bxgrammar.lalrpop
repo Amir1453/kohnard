@@ -88,17 +88,17 @@ pub BX: ast::Program = {
 }
 
 Declaration: ast::Declaration = {
-  <var_decl:VarDeclGlobal> => ast::Declaration::Variable(Box::new(var_decl)),
+  <var_decl:VarDecl> => ast::Declaration::Variable(Box::new(var_decl)),
 
   <proc_decl:ProcDecl> => proc_decl,
 }
 
-VarDeclGlobal: ast::Variable = {
-  "VAR" <name:"IDENT"> "=" <value:Expression> <name_value_pair:Star<("," <"IDENT"> "=" <Expression>)>> ":" <ty:Type> ";" => {
+VarDecl: ast::Variable = {
+  <start:@L> "VAR" <name:"IDENT"> "=" <value:Expression> <name_value_pair:Star<("," <"IDENT"> "=" <Expression>)>> ":" <ty:Type> ";" <end:@R> => {
     let (mut names, mut values): (ThinVec<Symbol>, ThinVec<Box<ast::Expression>>) = name_value_pair.into_iter().unzip();
     names.insert(0, name);
     values.insert(0, value);
-    ast::Variable {names, values, ty, scope: ast::ScopeState::Global}
+    ast::Variable {names, values, ty, span: ctx.span(start, end)}
   }
 }
 
@@ -109,45 +109,21 @@ ProcDecl: ast::Declaration = {
 }
 
 BXProcDecl: ast::Declaration = {
-  "DEF" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:(":" <Type>)?> "{" <stmts:Star<Statement>> "}"  => {
-    ast::Declaration::Proc {
-      proc_name,
-      proc_args,
-      return_type,
-      block: Box::new(ast::Block(stmts)),
-    }
-  }
+  <start:@L> "DEF" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:(":" <Type>)?> <block:Block> <end:@R> =>
+    ctx.proc_decl(proc_name, proc_args, return_type, block, ctx.span(start, end)),
 }
 
 RustProcDecl: ast::Declaration = {
-  "FN" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:("->" <Type>)?> "{" <stmts:Star<Statement>> "}"  => {
-    ast::Declaration::Proc {
-      proc_name,
-      proc_args,
-      return_type,
-      block: Box::new(ast::Block(stmts)),
-    }
-  }
+  <start:@L> "FN" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:("->" <Type>)?> <block:Block> <end:@R> =>
+    ctx.proc_decl(proc_name, proc_args, return_type, block, ctx.span(start, end)),
 }
 
 CProcDecl: ast::Declaration = {
-  <rty:Type> <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" "{" <stmts:Star<Statement>> "}"  => {
-    ast::Declaration::Proc {
-      proc_name,
-      proc_args,
-      return_type: Some(rty),
-      block: Box::new(ast::Block(stmts)),
-    }
-  },
+  <start:@L> <rty:Type> <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <block:Block> <end:@R> =>
+    ctx.proc_decl(proc_name, proc_args, Some(rty), block, ctx.span(start, end)),
 
-  "AUTO" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:("->" <Type>)?> "{" <stmts:Star<Statement>> "}"  => {
-    ast::Declaration::Proc {
-      proc_name,
-      proc_args,
-      return_type,
-      block: Box::new(ast::Block(stmts)),
-    }
-  }
+  <start:@L> "AUTO" <proc_name:"IDENT"> "(" <proc_args:ProcArgs?> ")" <return_type:("->" <Type>)?> <block:Block> <end:@R> =>
+    ctx.proc_decl(proc_name, proc_args, return_type, block, ctx.span(start, end)),
 }
 
 ProcArgs: ThinVec<(Symbol, Ty)> = {
@@ -169,56 +145,58 @@ Type: Ty = {
   "*" "MUT" <ty:Type> => Ty::intern(TyKind::MutPtr(ty)),
 }
 
+Block: Box<ast::Block> = {
+  <start:@L> "{" <statements:Star<Statement>> "}" <end:@R> => {
+    Box::new(ast::Block { statements, span: ctx.span(start, end) })
+  },
+}
+
 Statement: ast::Statement = {
-  <var_decl:VarDeclLocal> => ast::Statement::Variable(Box::new(var_decl)),
+  <start:@L> <kind:StatementKind> <end:@R> => ctx.statement(kind, ctx.span(start, end)),
+}
+
+StatementKind: ast::StatementKind = {
+  <var_decl:VarDecl> => ast::StatementKind::Variable(Box::new(var_decl)),
 
   <name:"IDENT"> "=" <value:Expression> ";" => {
-    ast::Statement::Assignment { name, value }
+    ast::StatementKind::Assignment { name, value }
   },
 
-  <expr:Expression> ";" => ast::Statement::Eval(expr),
+  <expr:Expression> ";" => ast::StatementKind::Eval(expr),
 
-  "RETURN" <expr:Expression?> ";" => ast::Statement::Return(expr),
+  "RETURN" <expr:Expression?> ";" => ast::StatementKind::Return(expr),
 
-  "{" <stmts:Star<Statement>> "}" => ast::Statement::Block(Box::new(ast::Block(stmts))),
+  <block:Block> => ast::StatementKind::Block(block),
 
   <ifelse:IFElse> => ifelse,
 
-  "WHILE" "(" <condition:Expression> ")" "{" <stmts:Star<Statement>> "}" => {
-    ast::Statement::While { condition, block: Box::new(ast::Block(stmts)) }
+  "WHILE" "(" <condition:Expression> ")" <block:Block> => {
+    ast::StatementKind::While { condition, block }
   },
 
-  "BREAK" ";"=> ast::Statement::Jump(ast::JumpState::Break),
+  "BREAK" ";"=> ast::StatementKind::Jump(ast::JumpState::Break),
 
-  "CONTINUE" ";" => ast::Statement::Jump(ast::JumpState::Continue),
+  "CONTINUE" ";" => ast::StatementKind::Jump(ast::JumpState::Continue),
 }
 
-VarDeclLocal: ast::Variable = {
-  "VAR" <name:"IDENT"> "=" <value:Expression> <name_value_pair:Star<("," <"IDENT"> "=" <Expression>)>> ":" <ty:Type> ";" => {
-    let (mut names, mut values): (ThinVec<Symbol>, ThinVec<Box<ast::Expression>>) = name_value_pair.into_iter().unzip();
-    names.insert(0, name);
-    values.insert(0, value);
-    ast::Variable {names, values, ty, scope: ast::ScopeState::Local}
-  }
-}
-
-IFElse: ast::Statement = {
-  "IF" "(" <condition:Expression> ")" "{" <then_block:Star<Statement>> "}" <ifrest:IFRest> => {
-    ast::Statement::If {
+IFElse: ast::StatementKind = {
+  "IF" "(" <condition:Expression> ")" <then_block:Block> <ifrest:IFRest> => {
+    ast::StatementKind::If {
       condition,
-      then_block: Box::new(ast::Block(then_block)),
+      then_block,
       else_branch: ifrest,
     }
   },
 }
 
 IFRest: Option<Box<ast::Statement>> = {
-    "ELSE" "{" <else_stmts:Star<Statement>> "}" => {
-        Some(Box::new(ast::Statement::Block(Box::new(ast::Block(else_stmts)))))
+    "ELSE" <block:Block> => {
+        let span = block.span;
+        Some(Box::new(ctx.statement(ast::StatementKind::Block(block), span)))
     },
 
-    "ELSE" <ifelse:IFElse> => {
-        Some(Box::new(ifelse))
+    "ELSE" <start:@L> <kind:IFElse> <end:@R> => {
+        Some(Box::new(ctx.statement(kind, ctx.span(start, end))))
     },
 
     => None,
@@ -230,255 +208,120 @@ Expression: Box<ast::Expression> = {
   ProcCall,
 
   #[precedence(level="10")] #[assoc(side="right")]
-  "~" <value:Expression> => {
-    Box::new(ast::Expression::UnaryOperation {
-      operator: ast::Operator::Tilde,
-      value,
-      ty: None
-    })
-  },
+  <start:@L> "~" <value:Expression> <end:@R> =>
+    ctx.unary(ast::Operator::Tilde, value, ctx.span(start, end)),
 
   #[precedence(level="20")] #[assoc(side="right")]
-  "-" <value:Expression> => {
-    Box::new(ast::Expression::UnaryOperation {
-      operator: ast::Operator::Neg,
-      value,
-      ty: None
-    })
-  },
+  <start:@L> "-" <value:Expression> <end:@R> =>
+    ctx.unary(ast::Operator::Neg, value, ctx.span(start, end)),
 
-  "!" <value:Expression> => {
-    Box::new(ast::Expression::UnaryOperation {
-      operator: ast::Operator::LNot,
-      value,
-      ty: None
-    })
-  },
+  <start:@L> "!" <value:Expression> <end:@R> =>
+    ctx.unary(ast::Operator::LNot, value, ctx.span(start, end)),
 
-  "&" <value:Expression> => {
-    Box::new(ast::Expression::UnaryOperation {
-      operator: ast::Operator::Ref,
-      value,
-      ty: None
-    })
-  },
+  <start:@L> "&" <value:Expression> <end:@R> =>
+    ctx.unary(ast::Operator::Ref, value, ctx.span(start, end)),
 
-  "&" "MUT" <value:Expression> => {
-    Box::new(ast::Expression::UnaryOperation {
-      operator: ast::Operator::MutRef,
-      value,
-      ty: None
-    })
-  },
+  <start:@L> "&" "MUT" <value:Expression> <end:@R> =>
+    ctx.unary(ast::Operator::MutRef, value, ctx.span(start, end)),
 
-  "*" <value:Expression> => {
-    Box::new(ast::Expression::UnaryOperation {
-      operator: ast::Operator::Deref,
-      value,
-      ty: None
-    })
-  },
+  <start:@L> "*" <value:Expression> <end:@R> =>
+    ctx.unary(ast::Operator::Deref, value, ctx.span(start, end)),
 
   #[precedence(level="30")] #[assoc(side="left")]
-  <lhs:Expression> "*" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::Star,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "*" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::Star, lhs, rhs, ctx.span(start, end)),
 
-  <lhs:Expression> "/" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::Slash,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "/" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::Slash, lhs, rhs, ctx.span(start, end)),
 
-  <lhs:Expression> "%" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::Mod,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "%" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::Mod, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="40")] #[assoc(side="left")]
-  <lhs:Expression> "+" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::Plus,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "+" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::Plus, lhs, rhs, ctx.span(start, end)),
 
-  <lhs:Expression> "-" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::Minus,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "-" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::Minus, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="50")] #[assoc(side="left")]
-  <lhs:Expression> "<<" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::LShift,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "<<" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::LShift, lhs, rhs, ctx.span(start, end)),
 
-  <lhs:Expression> ">>" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::RShift,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> ">>" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::RShift, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="53")] #[assoc(side="none")]
-  <lhs:Expression> "<" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::L,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "<" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::L, lhs, rhs, ctx.span(start, end)),
 
-  <lhs:Expression> "<=" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::LTE,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "<=" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::LTE, lhs, rhs, ctx.span(start, end)),
 
-  <lhs:Expression> ">" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::G,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> ">" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::G, lhs, rhs, ctx.span(start, end)),
 
-  <lhs:Expression> ">=" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::GTE,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> ">=" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::GTE, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="56")] #[assoc(side="none")]
-  <lhs:Expression> "==" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::Equal,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "==" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::Equal, lhs, rhs, ctx.span(start, end)),
 
-  <lhs:Expression> "!=" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::NEqual,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "!=" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::NEqual, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="60")] #[assoc(side="left")]
-  <lhs:Expression> "&" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::Ampersand,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "&" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::Ampersand, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="70")] #[assoc(side="left")]
-  <lhs:Expression> "^" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::Caret,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "^" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::Caret, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="80")] #[assoc(side="left")]
-  <lhs:Expression> "|" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::Pipe,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "|" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::Pipe, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="83")] #[assoc(side="left")]
-  <lhs:Expression> "&&" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::LAnd,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "&&" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::LAnd, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="86")] #[assoc(side="left")]
-  <lhs:Expression> "||" <rhs:Expression> => {
-    Box::new(ast::Expression::BinaryOperation {
-      lhs,
-      operator: ast::Operator::LOr,
-      rhs,
-      ty: None
-    })
-  },
+  <start:@L> <lhs:Expression> "||" <rhs:Expression> <end:@R> =>
+    ctx.binary(ast::Operator::LOr, lhs, rhs, ctx.span(start, end)),
 }
 
 Term: Box<ast::Expression> = {
-  <val:"NUMBER"> => {
-    Box::new(ast::Expression::Number(val))
+  <start:@L> <val:"NUMBER"> <end:@R> => {
+    ctx.expr(ast::ExpressionKind::Number(val), ctx.span(start, end))
   },
 
-  <name:"IDENT"> => {
-    Box::new(ast::Expression::Variable(name, None))
+  <start:@L> <name:"IDENT"> <end:@R> => {
+    ctx.expr(ast::ExpressionKind::Variable(name, None), ctx.span(start, end))
   },
 
-  "TRUE" => {
-    Box::new(ast::Expression::Bool(true))
+  <start:@L> "TRUE" <end:@R> => {
+    ctx.expr(ast::ExpressionKind::Bool(true), ctx.span(start, end))
   },
 
-  "FALSE" => {
-    Box::new(ast::Expression::Bool(false))
+  <start:@L> "FALSE" <end:@R> => {
+    ctx.expr(ast::ExpressionKind::Bool(false), ctx.span(start, end))
   },
 
-  "(" <Expression> ")",
+  <start:@L> "(" <mut expr:Expression> ")" <end:@R> => {
+    expr.span = ctx.span(start, end);
+    expr
+  },
 }
 
 ProcCall: Box<ast::Expression> = {
-  <proc_name:"IDENT"> "(" <proc_args:ProcCallArgs?> ")" => Box::new(
-    ast::Expression::ProcCall {
+  <start:@L> <proc_name:"IDENT"> "(" <proc_args:ProcCallArgs?> ")" <end:@R> => ctx.expr(
+    ast::ExpressionKind::ProcCall {
       proc_name,
       proc_args, 
       ty: None
-    }),
+    }, ctx.span(start, end)),
 }
 
 ProcCallArgs: ThinVec<Box<ast::Expression>> = {

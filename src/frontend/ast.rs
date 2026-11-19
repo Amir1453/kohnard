@@ -1,4 +1,5 @@
 use crate::Symbol;
+use crate::span::Span;
 use crate::types::{Promise, Ty};
 
 use thin_vec::ThinVec;
@@ -8,39 +9,35 @@ pub struct Program(pub Vec<Declaration>);
 pub enum Declaration {
     Variable(Box<Variable>),
 
-    Proc {
-        proc_name: Symbol,
-        proc_args: Option<ThinVec<(Symbol, Ty)>>,
-        return_type: Option<Ty>,
-        block: Box<Block>,
-    },
+    Proc(Box<ProcDecl>),
 }
 
 pub struct Variable {
     pub names: ThinVec<Symbol>,
     pub values: ThinVec<Box<Expression>>,
     pub ty: Ty,
-    #[allow(unused)]
-    pub scope: ScopeState,
-    // pub span: Span,
+    pub span: Span,
 }
 
-// pub struct ProcDecl {
-//     pub proc_name: (),
-//     pub proc_args: (),
-//     pub return_type: (),
-//     pub block: (),
-//     pub span: (),
-// }
+pub struct ProcDecl {
+    pub proc_name: Symbol,
+    pub proc_args: Option<ThinVec<(Symbol, Ty)>>,
+    pub return_type: Option<Ty>,
+    pub block: Box<Block>,
+    pub span: Span,
+}
 
-pub struct Block(pub ThinVec<Statement>);
+pub struct Block {
+    pub statements: ThinVec<Statement>,
+    pub span: Span,
+}
 
-// pub struct Statement {
-//     pub kind: (),
-//     pub span: (),
-// }
+pub struct Statement {
+    pub kind: StatementKind,
+    pub span: Span,
+}
 
-pub enum Statement {
+pub enum StatementKind {
     Variable(Box<Variable>),
 
     Block(Box<Block>),
@@ -72,13 +69,13 @@ pub enum Statement {
     Jump(JumpState),
 }
 
-// pub struct Expr {
-//     pub id: (),
-//     pub kind: (),
-//     pub span: (),
-// }
+pub struct Expression {
+    // pub id: (),
+    pub kind: ExpressionKind,
+    pub span: Span,
+}
 
-pub enum Expression {
+pub enum ExpressionKind {
     Variable(Symbol, Promise<Ty>),
     Number(i64),
     Bool(bool),
@@ -105,13 +102,19 @@ pub enum Expression {
 
 impl Expression {
     pub fn get_type(&self) -> Ty {
+        self.kind.get_type()
+    }
+}
+
+impl ExpressionKind {
+    pub fn get_type(&self) -> Ty {
         match self {
-            Expression::Variable(_, ty) => ty.unwrap_or(Ty::PROMISED),
-            Expression::Number(_) => Ty::INT,
-            Expression::Bool(_) => Ty::BOOL,
-            Expression::UnaryOperation { ty, .. } => ty.unwrap_or(Ty::PROMISED),
-            Expression::BinaryOperation { ty, .. } => ty.unwrap_or(Ty::PROMISED),
-            Expression::ProcCall { ty, .. } => ty.unwrap_or(Ty::PROMISED),
+            Self::Variable(_, ty) => ty.unwrap_or(Ty::PROMISED),
+            Self::Number(_) => Ty::INT,
+            Self::Bool(_) => Ty::BOOL,
+            Self::UnaryOperation { ty, .. } => ty.unwrap_or(Ty::PROMISED),
+            Self::BinaryOperation { ty, .. } => ty.unwrap_or(Ty::PROMISED),
+            Self::ProcCall { ty, .. } => ty.unwrap_or(Ty::PROMISED),
         }
     }
 }
@@ -144,11 +147,6 @@ pub enum Operator {
     Ref,
     MutRef,
     Deref,
-}
-
-pub enum ScopeState {
-    Global,
-    Local,
 }
 
 pub enum JumpState {

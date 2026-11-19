@@ -3,8 +3,8 @@ use std::iter::zip;
 
 use crate::Symbol;
 use crate::frontend::ast::*;
+use crate::span::Span;
 use crate::structs::{ErrorAggregate, Stack};
-use crate::types::Span;
 
 pub struct SemChecker {
     scopes: Stack<HashSet<Symbol>>,
@@ -38,16 +38,14 @@ impl SemChecker {
             match decl {
                 Declaration::Variable(var) => self.check_global_variable(var),
 
-                Declaration::Proc {
-                    block, proc_args, ..
-                } => {
+                Declaration::Proc(proc) => {
                     self.scopes.push(HashSet::new());
-                    if let Some(args) = proc_args {
+                    if let Some(args) = &proc.proc_args {
                         args.iter()
                             .for_each(|(name, _)| self.current_scope_insert(*name));
                     }
 
-                    self.check_block(block);
+                    self.check_block(&proc.block);
                     self.scopes.pop();
                 }
             }
@@ -56,7 +54,7 @@ impl SemChecker {
 
     fn check_block(&mut self, block: &Block) {
         self.scopes.push(HashSet::new());
-        for stmt in &block.0 {
+        for stmt in &block.statements {
             self.check_statement(stmt);
         }
         self.scopes.pop();
@@ -69,29 +67,29 @@ impl SemChecker {
     }
 
     fn check_statement(&mut self, stmt: &Statement) {
-        match stmt {
-            Statement::Variable(var) => self.check_variable(var),
+        match &stmt.kind {
+            StatementKind::Variable(var) => self.check_variable(var),
 
-            Statement::Block(block) => {
+            StatementKind::Block(block) => {
                 self.check_block(block);
             }
 
-            Statement::Assignment { name, value } => {
+            StatementKind::Assignment { name, value } => {
                 self.check_declared(name);
                 self.check_expression(value);
             }
 
-            Statement::Eval(value) => {
+            StatementKind::Eval(value) => {
                 self.check_expression(value);
             }
 
-            Statement::Return(expr) => {
+            StatementKind::Return(expr) => {
                 if let Some(expr) = expr {
                     self.check_expression(expr)
                 }
             }
 
-            Statement::If {
+            StatementKind::If {
                 condition,
                 then_block,
                 else_branch,
@@ -105,7 +103,7 @@ impl SemChecker {
                 }
             }
 
-            Statement::While { condition, block } => {
+            StatementKind::While { condition, block } => {
                 self.check_expression(condition);
 
                 self.loop_depth += 1;
@@ -113,7 +111,7 @@ impl SemChecker {
                 self.loop_depth -= 1;
             }
 
-            Statement::Jump(_) => {
+            StatementKind::Jump(_) => {
                 if self.loop_depth == 0 {
                     self.collect_error(SyntaxErrorType::JumpOutsideLoop, None);
                 }
@@ -129,25 +127,25 @@ impl SemChecker {
     }
 
     fn check_expression(&mut self, expr: &Expression) {
-        match expr {
-            Expression::Variable(name, ..) => {
+        match &expr.kind {
+            ExpressionKind::Variable(name, ..) => {
                 self.check_declared(name);
             }
 
-            Expression::Number(_) => {}
+            ExpressionKind::Number(_) => {}
 
-            Expression::Bool(_) => {}
+            ExpressionKind::Bool(_) => {}
 
-            Expression::BinaryOperation { lhs, rhs, .. } => {
+            ExpressionKind::BinaryOperation { lhs, rhs, .. } => {
                 self.check_expression(lhs);
                 self.check_expression(rhs);
             }
 
-            Expression::UnaryOperation { value, .. } => {
+            ExpressionKind::UnaryOperation { value, .. } => {
                 self.check_expression(value);
             }
 
-            Expression::ProcCall {
+            ExpressionKind::ProcCall {
                 proc_name,
                 proc_args,
                 ..
@@ -164,8 +162,8 @@ impl SemChecker {
     }
 
     fn check_is_constant_expression(&mut self, expr: &Expression) {
-        match expr {
-            Expression::Number(_) | Expression::Bool(_) => {}
+        match &expr.kind {
+            ExpressionKind::Number(_) | ExpressionKind::Bool(_) => {}
 
             _ => self.collect_error(SyntaxErrorType::NonConstantExpression, None),
         }

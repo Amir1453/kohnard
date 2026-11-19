@@ -1,4 +1,11 @@
+use thin_vec::ThinVec;
+
+use crate::Symbol;
+use crate::frontend::ast::{Block, Declaration, Operator, ProcDecl};
+use crate::frontend::ast::{Expression, ExpressionKind};
+use crate::frontend::ast::{Statement, StatementKind};
 use crate::span::Span;
+use crate::types::Ty;
 
 /// The parsing context that is passed on to the parser.
 pub(crate) struct ParseCtxt {
@@ -23,5 +30,59 @@ impl ParseCtxt {
     /// Constructs a Span.
     pub fn span(&self, start: usize, end: usize) -> Span {
         Span::new(self.position(start), self.position(end))
+    }
+
+    pub fn expr(&self, kind: ExpressionKind, span: Span) -> Box<Expression> {
+        Box::new(Expression { kind, span })
+    }
+
+    pub fn unary(&self, operator: Operator, value: Box<Expression>, span: Span) -> Box<Expression> {
+        self.expr(
+            ExpressionKind::UnaryOperation {
+                operator,
+                value,
+                ty: None,
+            },
+            span,
+        )
+    }
+
+    pub fn binary(
+        &self,
+        operator: Operator,
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
+        span: Span,
+    ) -> Box<Expression> {
+        self.expr(
+            ExpressionKind::BinaryOperation {
+                lhs,
+                operator,
+                rhs,
+                ty: None,
+            },
+            span,
+        )
+    }
+
+    pub fn proc_decl(
+        &self,
+        proc_name: Symbol,
+        proc_args: Option<ThinVec<(Symbol, Ty)>>,
+        return_type: Option<Ty>,
+        block: Box<Block>,
+        span: Span,
+    ) -> Declaration {
+        Declaration::Proc(Box::new(ProcDecl {
+            proc_name,
+            proc_args,
+            return_type,
+            block,
+            span,
+        }))
+    }
+
+    pub fn statement(&self, kind: StatementKind, span: Span) -> Statement {
+        Statement { kind, span }
     }
 }

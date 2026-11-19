@@ -1,6 +1,6 @@
 use compact_str::CompactString;
 
-use crate::frontend::ast::{Block, Program, Statement};
+use crate::frontend::ast::{Block, Program, Statement, StatementKind};
 use crate::structs::ErrorAggregate;
 
 pub struct RetChecker {}
@@ -10,16 +10,13 @@ impl RetChecker {
         let mut errors = ErrorAggregate::<NoReturnError>::new();
 
         for decl in &program.0 {
-            if let super::ast::Declaration::Proc {
-                proc_name, block, ..
-            } = decl
-            {
-                if proc_name.as_str() == "main" {
+            if let super::ast::Declaration::Proc(proc) = decl {
+                if proc.proc_name.as_str() == "main" {
                     continue;
                 }
 
-                if !Self::check_block(block) {
-                    errors.add_error(NoReturnError(proc_name.as_str().into()));
+                if !Self::check_block(&proc.block) {
+                    errors.add_error(NoReturnError(proc.proc_name.as_str().into()));
                 }
             }
         }
@@ -28,7 +25,7 @@ impl RetChecker {
     }
 
     fn check_block(block: &Block) -> bool {
-        for statement in &block.0 {
+        for statement in &block.statements {
             if Self::check_statement(statement) {
                 return true;
             }
@@ -37,12 +34,12 @@ impl RetChecker {
     }
 
     fn check_statement(statement: &Statement) -> bool {
-        match statement {
-            Statement::Return(_) => true,
+        match &statement.kind {
+            StatementKind::Return(_) => true,
 
-            Statement::Block(block) => Self::check_block(block),
+            StatementKind::Block(block) => Self::check_block(block),
 
-            Statement::If {
+            StatementKind::If {
                 then_block,
                 else_branch: Some(else_branch),
                 ..
@@ -50,7 +47,7 @@ impl RetChecker {
 
             // Assume that while statements return for now
             // Needs return analysis
-            Statement::While { .. } => true,
+            StatementKind::While { .. } => true,
 
             _ => false,
         }
