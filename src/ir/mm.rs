@@ -142,7 +142,7 @@ impl MM {
             }
 
             StatementKind::Assignment { target, value } => {
-                let ExpressionKind::Variable(name, _) = target.kind else {
+                let ExpressionKind::Variable(name) = target.kind else {
                     unreachable!("only variable assignment targets are currently supported");
                 };
                 let temp = self.munch_expression(*value);
@@ -281,7 +281,6 @@ impl MM {
                     lhs,
                     operator,
                     rhs,
-                    ty: _,
                 } => {
                     let temp = self.fresh_temp();
                     let ltmp = self.munch_expression(*lhs);
@@ -300,7 +299,6 @@ impl MM {
                 ExpressionKind::UnaryOperation {
                     operator,
                     value,
-                    ty: _,
                 } => {
                     let temp = self.fresh_temp();
                     let utmp = self.munch_expression(*value);

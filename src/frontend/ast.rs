@@ -98,10 +98,11 @@ pub struct Expression {
     // pub id: (),
     pub kind: ExpressionKind,
     pub span: Span,
+    pub ty: Promise<Ty>,
 }
 
 pub enum ExpressionKind {
-    Variable(Symbol, Promise<Ty>),
+    Variable(Symbol),
     Number(i64),
     Bool(bool),
 
@@ -109,38 +110,22 @@ pub enum ExpressionKind {
         lhs: Box<Expression>,
         operator: Operator,
         rhs: Box<Expression>,
-        ty: Promise<Ty>,
     },
 
     UnaryOperation {
         operator: Operator,
         value: Box<Expression>,
-        ty: Promise<Ty>,
     },
 
     ProcCall {
         proc_name: Symbol,
         proc_args: Option<ThinVec<Box<Expression>>>,
-        ty: Promise<Ty>,
     },
 }
 
 impl Expression {
     pub fn get_type(&self) -> Ty {
-        self.kind.get_type()
-    }
-}
-
-impl ExpressionKind {
-    pub fn get_type(&self) -> Ty {
-        match self {
-            Self::Variable(_, ty) => ty.unwrap_or(Ty::PROMISED),
-            Self::Number(_) => Ty::INT,
-            Self::Bool(_) => Ty::BOOL,
-            Self::UnaryOperation { ty, .. } => ty.unwrap_or(Ty::PROMISED),
-            Self::BinaryOperation { ty, .. } => ty.unwrap_or(Ty::PROMISED),
-            Self::ProcCall { ty, .. } => ty.unwrap_or(Ty::PROMISED),
-        }
+        self.ty.unwrap_or(Ty::PROMISED)
     }
 }
 

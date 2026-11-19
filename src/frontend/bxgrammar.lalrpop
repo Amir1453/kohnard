@@ -294,19 +294,19 @@ Expression: Box<ast::Expression> = {
 
 Term: Box<ast::Expression> = {
   <start:@L> <val:"NUMBER"> <end:@R> => {
-    ctx.expr(ast::ExpressionKind::Number(val), ctx.span(start, end))
+    ctx.expr(ast::ExpressionKind::Number(val), ctx.span(start, end), Some(Ty::INT))
   },
 
   <start:@L> <name:"IDENT"> <end:@R> => {
-    ctx.expr(ast::ExpressionKind::Variable(name, None), ctx.span(start, end))
+    ctx.expr(ast::ExpressionKind::Variable(name), ctx.span(start, end), None)
   },
 
   <start:@L> "TRUE" <end:@R> => {
-    ctx.expr(ast::ExpressionKind::Bool(true), ctx.span(start, end))
+    ctx.expr(ast::ExpressionKind::Bool(true), ctx.span(start, end), Some(Ty::BOOL))
   },
 
   <start:@L> "FALSE" <end:@R> => {
-    ctx.expr(ast::ExpressionKind::Bool(false), ctx.span(start, end))
+    ctx.expr(ast::ExpressionKind::Bool(false), ctx.span(start, end), Some(Ty::BOOL))
   },
 
   <start:@L> "(" <mut expr:Expression> ")" <end:@R> => {
@@ -316,12 +316,13 @@ Term: Box<ast::Expression> = {
 }
 
 ProcCall: Box<ast::Expression> = {
-  <start:@L> <proc_name:"IDENT"> "(" <proc_args:ProcCallArgs?> ")" <end:@R> => ctx.expr(
+  <start:@L> <proc_name:"IDENT"> "(" <proc_args:ProcCallArgs?> ")" <end:@R> => 
+  ctx.expr(
     ast::ExpressionKind::ProcCall {
       proc_name,
       proc_args, 
-      ty: None
-    }, ctx.span(start, end)),
+    }, 
+    ctx.span(start, end), None),
 }
 
 ProcCallArgs: ThinVec<Box<ast::Expression>> = {

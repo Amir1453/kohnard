@@ -32,8 +32,8 @@ impl ParseCtxt {
         Span::new(self.position(start), self.position(end))
     }
 
-    pub fn expr(&self, kind: ExpressionKind, span: Span) -> Box<Expression> {
-        Box::new(Expression { kind, span })
+    pub fn expr(&self, kind: ExpressionKind, span: Span, ty: Option<Ty>) -> Box<Expression> {
+        Box::new(Expression { kind, span, ty })
     }
 
     pub fn unary(&self, operator: Operator, value: Box<Expression>, span: Span) -> Box<Expression> {
@@ -41,9 +41,9 @@ impl ParseCtxt {
             ExpressionKind::UnaryOperation {
                 operator,
                 value,
-                ty: None,
             },
             span,
+            None
         )
     }
 
@@ -59,9 +59,9 @@ impl ParseCtxt {
                 lhs,
                 operator,
                 rhs,
-                ty: None,
             },
             span,
+            None,
         )
     }
 

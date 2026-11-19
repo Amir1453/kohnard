@@ -166,15 +166,15 @@ impl TypeChecker {
     }
 
     fn check_expression(&mut self, expr: &mut Expression) {
+        let mut ty = &mut expr.ty;
         match &mut expr.kind {
-            ExpressionKind::Variable(name, ty) => {
+            ExpressionKind::Variable(name) => {
                 *ty = Some(self.find_simple_type(name));
             }
 
             ExpressionKind::UnaryOperation {
                 operator,
                 value,
-                ty,
             } => {
                 self.check_expression(value);
                 let value_type = value.get_type();
@@ -236,7 +236,6 @@ impl TypeChecker {
                 lhs,
                 operator,
                 rhs,
-                ty,
             } => {
                 self.check_expression(lhs);
                 self.check_expression(rhs);
@@ -289,7 +288,6 @@ impl TypeChecker {
             ExpressionKind::ProcCall {
                 proc_name,
                 proc_args,
-                ty,
             } => {
                 if proc_name.as_str() == "print" {
                     *ty = Some(Ty::VOID);
