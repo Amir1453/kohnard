@@ -7,11 +7,13 @@ use crate::Symbol;
 use crate::backend::CodegenBackend;
 use crate::backend::x86;
 use crate::frontend::ast::{Declaration, Program};
+use crate::frontend::parser::ParseCtxt;
 use crate::frontend::{BXParser, Lexer, RetChecker, SemChecker, TypeChecker};
 use crate::globals;
 use crate::ir::MM;
 use crate::opt::Optimizer;
 use crate::options::CompilerOptions;
+use crate::span::SourceMap;
 use crate::types::{ProcType, SemanticType};
 
 pub struct Driver {}
@@ -49,12 +51,16 @@ impl Driver {
 
         // Accumulate compilation unit programs
         let mut cu_programs: Vec<(PathBuf, Program)> = Vec::new();
-        for cu in options.compilation_units.into_iter() {
-            let cu_source_code = std::fs::read_to_string(&cu)?;
-            let cu_lexer = Lexer::new(&cu_source_code);
-            let cu_program = parser.parse(cu_lexer)?;
 
-            cu_programs.push((cu, cu_program));
+        // Generate the SourceMap
+        let source_map = SourceMap::new(options.compilation_units)?;
+        for file in source_map.files() {
+            let cu_lexer = Lexer::new(&file.source);
+
+            let parse_ctxt = ParseCtxt::new(file.offset);
+            let cu_program = parser.parse(&parse_ctxt, cu_lexer)?;
+
+            cu_programs.push((file.path.clone(), cu_program));
         }
 
         let mut global_decls: HashMap<Symbol, SemanticType> = HashMap::new();

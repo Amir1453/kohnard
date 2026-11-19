@@ -1,12 +1,13 @@
 use crate::Symbol;
 use crate::frontend::ast;
 use crate::frontend::tokens::{Token, LexicalError};
+use crate::frontend::parser::ParseCtxt;
 use crate::types::Ty;
 use crate::types::TyKind;
 
 use thin_vec::{thin_vec, ThinVec};
 
-grammar;
+grammar(ctx: &ParseCtxt);
 
 // ...
 

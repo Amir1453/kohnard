@@ -9,6 +9,7 @@ pub mod driver;
 mod globals;
 mod index;
 mod options;
+mod span;
 mod symbol;
 mod types;
 

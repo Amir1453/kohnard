@@ -22,6 +22,7 @@ pub struct Variable {
     pub ty: Ty,
     #[allow(unused)]
     pub scope: ScopeState,
+    // pub span: Span,
 }
 
 // pub struct ProcDecl {
