@@ -114,7 +114,7 @@ impl TypeChecker {
                         if let Some(exp) = expr {
                             self.check_expression(exp);
                             let ty = exp.get_type();
-                            if ty.is_void() {
+                            if !ty.is_void() {
                                 self.collect_error(TypeErrorType::ReturnTypeMismatchSub, None);
                             }
                         }
@@ -128,7 +128,7 @@ impl TypeChecker {
                 else_branch,
             } => {
                 self.check_expression(condition);
-                if condition.get_type().is_bool() {
+                if !condition.get_type().is_bool() {
                     self.collect_error(TypeErrorType::ConditionNotBool, None);
                 }
 
@@ -141,7 +141,7 @@ impl TypeChecker {
 
             StatementKind::While { condition, block } => {
                 self.check_expression(condition);
-                if condition.get_type().is_bool() {
+                if !condition.get_type().is_bool() {
                     self.collect_error(TypeErrorType::ConditionNotBool, None);
                 }
 
