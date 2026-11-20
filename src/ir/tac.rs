@@ -4,7 +4,7 @@ use std::ops::{Add, Deref, DerefMut};
 use thin_vec::ThinVec;
 
 use crate::Symbol;
-use crate::frontend::ast::Operator;
+use crate::frontend::ast::{BinOp, UnOp};
 
 #[derive(Clone, Hash, PartialEq)]
 pub struct CUTAC(pub Vec<TACDeclaration>);
@@ -326,9 +326,9 @@ impl fmt::Display for Label {
     }
 }
 
-impl From<Operator> for TACJumpOpcode {
-    fn from(value: Operator) -> Self {
-        use Operator::*;
+impl From<BinOp> for TACJumpOpcode {
+    fn from(value: BinOp) -> Self {
+        use BinOp::*;
         use TACJumpOpcode::*;
         match value {
             Equal => JZ,
@@ -342,9 +342,9 @@ impl From<Operator> for TACJumpOpcode {
     }
 }
 
-impl From<Operator> for TACUnaryOpcode {
-    fn from(value: Operator) -> Self {
-        use Operator::*;
+impl From<UnOp> for TACUnaryOpcode {
+    fn from(value: UnOp) -> Self {
+        use UnOp::*;
         use TACUnaryOpcode::*;
         match value {
             Neg => NEG,
@@ -354,9 +354,9 @@ impl From<Operator> for TACUnaryOpcode {
     }
 }
 
-impl From<Operator> for TACBinaryOpcode {
-    fn from(value: Operator) -> Self {
-        use Operator::*;
+impl From<BinOp> for TACBinaryOpcode {
+    fn from(value: BinOp) -> Self {
+        use BinOp::*;
         use TACBinaryOpcode::*;
         match value {
             Plus => ADD,

@@ -57,14 +57,15 @@ const _: () = {
     assert!(size_of::<Option<Ty>>() == size_of::<Ty>());
 };
 
-#[allow(dead_code)]
 impl Ty {
     pub const INT: Ty = Ty::new(0);
     pub const BOOL: Ty = Ty::new(1);
     pub const VOID: Ty = Ty::new(2);
     pub const PROMISED: Ty = Ty::new(3);
     pub const ERROR: Ty = Ty::new(4);
+}
 
+impl Ty {
     #[must_use]
     #[inline(always)]
     pub const fn new(value: u32) -> Self {
@@ -73,13 +74,62 @@ impl Ty {
 
     #[inline]
     pub fn intern(ty: TyKind) -> Self {
-        crate::with_session_globals(|globals| globals.get_type_interner().intern_ty(ty))
+        match ty {
+            TyKind::Int => Self::INT,
+            TyKind::Bool => Self::BOOL,
+            TyKind::Void => Self::VOID,
+            TyKind::Promised => Self::PROMISED,
+            TyKind::Error => Self::ERROR,
+            _ => crate::with_session_globals(|globals| globals.get_type_interner().intern_ty(ty)),
+        }
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub fn kind(self) -> TyKind {
-        crate::with_session_globals(|globals| globals.get_type_interner().get_ty(self))
+        match self {
+            Self::INT => TyKind::Int,
+            Self::BOOL => TyKind::Bool,
+            Self::VOID => TyKind::Void,
+            Self::PROMISED => TyKind::Promised,
+            Self::ERROR => TyKind::Error,
+            _ => crate::with_session_globals(|globals| globals.get_type_interner().get_ty(self)),
+        }
+    }
+
+    #[inline]
+    pub const fn is_integral(self) -> bool {
+        matches!(self, Self::INT)
+    }
+
+    #[inline]
+    pub const fn is_bool(self) -> bool {
+        matches!(self, Self::BOOL)
+    }
+
+    #[inline]
+    pub const fn is_void(self) -> bool {
+        matches!(self, Self::VOID)
+    }
+
+    #[inline]
+    pub fn deref(self) -> Option<Ty> {
+        match self.kind() {
+            TyKind::Ref(inner)
+            | TyKind::MutRef(inner)
+            | TyKind::Ptr(inner)
+            | TyKind::MutPtr(inner) => Some(inner),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn is_ref(self) -> bool {
+        matches!(self.kind(), TyKind::Ref(_) | TyKind::MutRef(_))
+    }
+
+    #[inline]
+    pub fn is_ptr(self) -> bool {
+        matches!(self.kind(), TyKind::Ptr(_) | TyKind::MutPtr(_))
     }
 }
 

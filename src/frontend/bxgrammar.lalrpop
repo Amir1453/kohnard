@@ -209,87 +209,87 @@ Expression: Box<ast::Expression> = {
 
   #[precedence(level="10")] #[assoc(side="right")]
   <start:@L> "~" <value:Expression> <end:@R> =>
-    ctx.unary(ast::Operator::Tilde, value, ctx.span(start, end)),
+    ctx.unary(ast::UnOp::Tilde, value, ctx.span(start, end)),
 
   #[precedence(level="20")] #[assoc(side="right")]
   <start:@L> "-" <value:Expression> <end:@R> =>
-    ctx.unary(ast::Operator::Neg, value, ctx.span(start, end)),
+    ctx.unary(ast::UnOp::Neg, value, ctx.span(start, end)),
 
   <start:@L> "!" <value:Expression> <end:@R> =>
-    ctx.unary(ast::Operator::LNot, value, ctx.span(start, end)),
+    ctx.unary(ast::UnOp::LNot, value, ctx.span(start, end)),
 
   <start:@L> "&" <value:Expression> <end:@R> =>
-    ctx.unary(ast::Operator::Ref, value, ctx.span(start, end)),
+    ctx.unary(ast::UnOp::Ref, value, ctx.span(start, end)),
 
   <start:@L> "&" "MUT" <value:Expression> <end:@R> =>
-    ctx.unary(ast::Operator::MutRef, value, ctx.span(start, end)),
+    ctx.unary(ast::UnOp::MutRef, value, ctx.span(start, end)),
 
   <start:@L> "*" <value:Expression> <end:@R> =>
-    ctx.unary(ast::Operator::Deref, value, ctx.span(start, end)),
+    ctx.unary(ast::UnOp::Deref, value, ctx.span(start, end)),
 
   #[precedence(level="30")] #[assoc(side="left")]
   <start:@L> <lhs:Expression> "*" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::Star, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::Star, lhs, rhs, ctx.span(start, end)),
 
   <start:@L> <lhs:Expression> "/" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::Slash, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::Slash, lhs, rhs, ctx.span(start, end)),
 
   <start:@L> <lhs:Expression> "%" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::Mod, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::Mod, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="40")] #[assoc(side="left")]
   <start:@L> <lhs:Expression> "+" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::Plus, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::Plus, lhs, rhs, ctx.span(start, end)),
 
   <start:@L> <lhs:Expression> "-" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::Minus, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::Minus, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="50")] #[assoc(side="left")]
   <start:@L> <lhs:Expression> "<<" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::LShift, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::LShift, lhs, rhs, ctx.span(start, end)),
 
   <start:@L> <lhs:Expression> ">>" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::RShift, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::RShift, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="53")] #[assoc(side="none")]
   <start:@L> <lhs:Expression> "<" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::L, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::L, lhs, rhs, ctx.span(start, end)),
 
   <start:@L> <lhs:Expression> "<=" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::LTE, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::LTE, lhs, rhs, ctx.span(start, end)),
 
   <start:@L> <lhs:Expression> ">" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::G, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::G, lhs, rhs, ctx.span(start, end)),
 
   <start:@L> <lhs:Expression> ">=" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::GTE, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::GTE, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="56")] #[assoc(side="none")]
   <start:@L> <lhs:Expression> "==" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::Equal, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::Equal, lhs, rhs, ctx.span(start, end)),
 
   <start:@L> <lhs:Expression> "!=" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::NEqual, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::NEqual, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="60")] #[assoc(side="left")]
   <start:@L> <lhs:Expression> "&" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::Ampersand, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::Ampersand, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="70")] #[assoc(side="left")]
   <start:@L> <lhs:Expression> "^" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::Caret, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::Caret, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="80")] #[assoc(side="left")]
   <start:@L> <lhs:Expression> "|" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::Pipe, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::Pipe, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="83")] #[assoc(side="left")]
   <start:@L> <lhs:Expression> "&&" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::LAnd, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::LAnd, lhs, rhs, ctx.span(start, end)),
 
   #[precedence(level="86")] #[assoc(side="left")]
   <start:@L> <lhs:Expression> "||" <rhs:Expression> <end:@R> =>
-    ctx.binary(ast::Operator::LOr, lhs, rhs, ctx.span(start, end)),
+    ctx.binary(ast::BinOp::LOr, lhs, rhs, ctx.span(start, end)),
 }
 
 Term: Box<ast::Expression> = {

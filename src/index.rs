@@ -1,5 +1,6 @@
-//! Creates a struct type `S` that can be used as an index with `IndexVec` and so on.
+//! Macro for easily generating typed indexes.
 
+/// Creates a struct type `S` that can be used as an index with `IndexVec` and so on.
 macro_rules! index_type {
     ($name:ident) => {
         /// The underlying index is stored as a NonZeroU32, which allows for a size optimization of

@@ -1,7 +1,8 @@
 use thin_vec::ThinVec;
 
 use crate::Symbol;
-use crate::frontend::ast::{Block, Declaration, Operator, ProcDecl};
+use crate::frontend::ast::{BinOp, UnOp};
+use crate::frontend::ast::{Block, Declaration, ProcDecl};
 use crate::frontend::ast::{Expression, ExpressionKind};
 use crate::frontend::ast::{Statement, StatementKind};
 use crate::span::Span;
@@ -36,30 +37,23 @@ impl ParseCtxt {
         Box::new(Expression { kind, span, ty })
     }
 
-    pub fn unary(&self, operator: Operator, value: Box<Expression>, span: Span) -> Box<Expression> {
+    pub fn unary(&self, operator: UnOp, value: Box<Expression>, span: Span) -> Box<Expression> {
         self.expr(
-            ExpressionKind::UnaryOperation {
-                operator,
-                value,
-            },
+            ExpressionKind::UnaryOperation { operator, value },
             span,
-            None
+            None,
         )
     }
 
     pub fn binary(
         &self,
-        operator: Operator,
+        operator: BinOp,
         lhs: Box<Expression>,
         rhs: Box<Expression>,
         span: Span,
     ) -> Box<Expression> {
         self.expr(
-            ExpressionKind::BinaryOperation {
-                lhs,
-                operator,
-                rhs,
-            },
+            ExpressionKind::BinaryOperation { lhs, operator, rhs },
             span,
             None,
         )

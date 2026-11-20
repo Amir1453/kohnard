@@ -108,12 +108,12 @@ pub enum ExpressionKind {
 
     BinaryOperation {
         lhs: Box<Expression>,
-        operator: Operator,
+        operator: BinOp,
         rhs: Box<Expression>,
     },
 
     UnaryOperation {
-        operator: Operator,
+        operator: UnOp,
         value: Box<Expression>,
     },
 
@@ -130,18 +130,16 @@ impl Expression {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Operator {
+pub enum BinOp {
     Plus,
     Minus,
     Star,
     Slash,
     Mod,
-    Neg,
 
     Pipe,
     Caret,
     Ampersand,
-    Tilde,
     LShift,
     RShift,
 
@@ -153,8 +151,13 @@ pub enum Operator {
     GTE,
     LAnd,
     LOr,
-    LNot,
+}
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum UnOp {
+    Neg,
+    Tilde,
+    LNot,
     Ref,
     MutRef,
     Deref,

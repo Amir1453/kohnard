@@ -401,7 +401,7 @@ impl MM {
             ExpressionKind::BinaryOperation {
                 lhs, operator, rhs, ..
             } => {
-                use Operator::*;
+                use BinOp::*;
                 use TACBinaryOpcode::SUB;
 
                 match operator {
@@ -447,7 +447,7 @@ impl MM {
             ExpressionKind::UnaryOperation {
                 operator, value, ..
             } => {
-                use Operator::*;
+                use UnOp::*;
                 if let LNot = &operator {
                     self.munch_boolean_expression(*value, flabel, tlabel);
                 }

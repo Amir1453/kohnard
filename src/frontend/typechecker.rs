@@ -114,7 +114,7 @@ impl TypeChecker {
                         if let Some(exp) = expr {
                             self.check_expression(exp);
                             let ty = exp.get_type();
-                            if ty != Ty::VOID {
+                            if ty.is_void() {
                                 self.collect_error(TypeErrorType::ReturnTypeMismatchSub, None);
                             }
                         }
@@ -128,7 +128,7 @@ impl TypeChecker {
                 else_branch,
             } => {
                 self.check_expression(condition);
-                if condition.get_type() != Ty::BOOL {
+                if condition.get_type().is_bool() {
                     self.collect_error(TypeErrorType::ConditionNotBool, None);
                 }
 
@@ -141,7 +141,7 @@ impl TypeChecker {
 
             StatementKind::While { condition, block } => {
                 self.check_expression(condition);
-                if condition.get_type() != Ty::BOOL {
+                if condition.get_type().is_bool() {
                     self.collect_error(TypeErrorType::ConditionNotBool, None);
                 }
 
@@ -166,123 +166,36 @@ impl TypeChecker {
     }
 
     fn check_expression(&mut self, expr: &mut Expression) {
-        let mut ty = &mut expr.ty;
+        let ty = &mut expr.ty;
         match &mut expr.kind {
             ExpressionKind::Variable(name) => {
                 *ty = Some(self.find_simple_type(name));
             }
 
-            ExpressionKind::UnaryOperation {
-                operator,
-                value,
-            } => {
+            ExpressionKind::UnaryOperation { operator, value } => {
                 self.check_expression(value);
                 let value_type = value.get_type();
-                match operator {
-                    Operator::Neg => {
-                        if value_type != Ty::INT {
-                            self.collect_error(TypeErrorType::OpNegMismatch, None);
-                            *ty = Some(Ty::ERROR);
-                        } else {
-                            *ty = Some(Ty::INT);
-                        }
+                match self.check_unary_operation(*operator, value_type) {
+                    Ok(typ) => *ty = Some(typ),
+                    Err(err) => {
+                        self.collect_error(err, None);
+                        *ty = Some(Ty::ERROR)
                     }
-
-                    Operator::Tilde => {
-                        if value_type != Ty::INT {
-                            self.collect_error(TypeErrorType::OpTildeMismatch, None);
-                            *ty = Some(Ty::ERROR);
-                        } else {
-                            *ty = Some(Ty::INT);
-                        }
-                    }
-
-                    Operator::LNot => {
-                        if value_type != Ty::BOOL {
-                            self.collect_error(TypeErrorType::OpLNotMismatch, None);
-                            *ty = Some(Ty::ERROR);
-                        } else {
-                            *ty = Some(Ty::BOOL);
-                        }
-                    }
-
-                    Operator::Ref => {
-                        *ty = Some(Ty::intern(TyKind::Ref(value_type)));
-                    }
-
-                    Operator::MutRef => {
-                        *ty = Some(Ty::intern(TyKind::MutRef(value_type)));
-                    }
-
-                    Operator::Deref => {
-                        *ty = Some(match value_type.kind() {
-                            TyKind::Ref(inner)
-                            | TyKind::MutRef(inner)
-                            | TyKind::Ptr(inner)
-                            | TyKind::MutPtr(inner) => inner,
-                            TyKind::Error => Ty::ERROR,
-                            _ => {
-                                self.collect_error(TypeErrorType::OpDerefMismatch, None);
-                                Ty::ERROR
-                            }
-                        });
-                    }
-
-                    _ => {}
                 }
             }
 
-            ExpressionKind::BinaryOperation {
-                lhs,
-                operator,
-                rhs,
-            } => {
+            ExpressionKind::BinaryOperation { lhs, operator, rhs } => {
                 self.check_expression(lhs);
                 self.check_expression(rhs);
                 let lhs_type = lhs.get_type();
                 let rhs_type = rhs.get_type();
-
-                use Operator::*;
-                let exp_type = match operator {
-                    Plus | Minus | Star | Slash | Mod => {
-                        if lhs_type == Ty::INT && rhs_type == Ty::INT {
-                            Some(Ty::INT)
-                        } else {
-                            self.collect_error(TypeErrorType::OpArithMismatch, None);
-                            Some(Ty::ERROR)
-                        }
+                match self.check_binary_operation(*operator, lhs_type, rhs_type) {
+                    Ok(typ) => *ty = Some(typ),
+                    Err(err) => {
+                        self.collect_error(err, None);
+                        *ty = Some(Ty::ERROR)
                     }
-
-                    Pipe | Caret | Ampersand | LShift | RShift => {
-                        if lhs_type == Ty::INT && rhs_type == Ty::INT {
-                            Some(Ty::INT)
-                        } else {
-                            self.collect_error(TypeErrorType::OpBitwiseMismatch, None);
-                            Some(Ty::ERROR)
-                        }
-                    }
-
-                    Equal | NEqual | L | LTE | G | GTE => {
-                        if lhs_type == Ty::INT && rhs_type == Ty::INT {
-                            Some(Ty::BOOL)
-                        } else {
-                            self.collect_error(TypeErrorType::OpCompareMismatch, None);
-                            Some(Ty::ERROR)
-                        }
-                    }
-
-                    LAnd | LOr => {
-                        if lhs_type == Ty::BOOL && rhs_type == Ty::BOOL {
-                            Some(Ty::BOOL)
-                        } else {
-                            self.collect_error(TypeErrorType::OpLogicalMismatch, None);
-                            Some(Ty::ERROR)
-                        }
-                    }
-
-                    _ => None,
-                };
-                *ty = exp_type;
+                }
             }
 
             ExpressionKind::ProcCall {
@@ -318,6 +231,41 @@ impl TypeChecker {
             }
 
             _ => {}
+        }
+    }
+
+    fn check_unary_operation(&self, op: UnOp, operand_ty: Ty) -> Result<Ty, TypeErrorType> {
+        use TypeErrorType::*;
+        use UnOp::*;
+
+        match op {
+            Neg | Tilde if operand_ty.is_integral() => Ok(operand_ty),
+            LNot if operand_ty.is_bool() => Ok(Ty::BOOL),
+            Ref => Ok(Ty::intern(TyKind::Ref(operand_ty))),
+            MutRef => Ok(Ty::intern(TyKind::MutRef(operand_ty))),
+            Deref => operand_ty.deref().ok_or(OpDerefMismatch),
+            _ => Err(UnOpMismatch),
+        }
+    }
+
+    fn check_binary_operation(&self, op: BinOp, lhs: Ty, rhs: Ty) -> Result<Ty, TypeErrorType> {
+        use BinOp::*;
+        use TypeErrorType::*;
+
+        let both_int = lhs == Ty::INT && rhs == Ty::INT;
+
+        match op {
+            Plus | Minus | Star | Slash | Mod if both_int => Ok(Ty::INT),
+            Plus | Minus | Star | Slash | Mod => Err(OpArithMismatch),
+
+            Pipe | Caret | Ampersand | LShift | RShift if both_int => Ok(Ty::INT),
+            Pipe | Caret | Ampersand | LShift | RShift => Err(OpBitwiseMismatch),
+
+            Equal | NEqual | L | LTE | G | GTE if both_int => Ok(Ty::BOOL),
+            Equal | NEqual | L | LTE | G | GTE => Err(OpCompareMismatch),
+
+            LAnd | LOr if lhs == Ty::BOOL && rhs == Ty::BOOL => Ok(Ty::BOOL),
+            LAnd | LOr => Err(OpLogicalMismatch),
         }
     }
 
@@ -390,6 +338,11 @@ pub enum TypeErrorType {
     OpCompareMismatch,
     #[error("Wrong type used with negation")]
     OpLogicalMismatch,
+
+    #[error("Mismatch on binary operation types")]
+    BinOpMismatch,
+    #[error("Mismatch on unary operation type")]
+    UnOpMismatch,
 
     #[error("Return value is missing")]
     ReturnValueMissing,
